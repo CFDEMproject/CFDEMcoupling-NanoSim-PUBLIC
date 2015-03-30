@@ -1,0 +1,24 @@
+include $(CFDEM_ADD_LIBS_DIR)/additionalLibs
+
+EXE_INC = \
+    -I$(CFDEM_SRC_DIR)/c3po/interface_OF \
+    -I$(LIB_SRC)/triSurface/lnInclude \
+    -I$(LIB_SRC)/meshTools/lnInclude \
+    -I$(LIB_SRC)/finiteVolume/lnInclude \
+	-I/usr/lib/openmpi/include/ \
+    -I$(C3PO_SRC_DIR)/core \
+    -I$(MPI_ARCH_PATH)/include \
+ 
+EXE_LIBS = \
+     $(PLIBS) \
+    -L$(FOAM_USER_LIBBIN)\
+    -lfiniteVolume \
+    -lmeshTools \
+	-lblockMesh \
+    -ltriSurface \
+    -L$(MPI_ARCH_PATH)/lib64 \
+    -lmpi_cxx \
+    -lmpi \
+    -lc3po \
+    $(CFDEM_ADD_LIB_PATHS) \
+    $(CFDEM_ADD_LIBS)

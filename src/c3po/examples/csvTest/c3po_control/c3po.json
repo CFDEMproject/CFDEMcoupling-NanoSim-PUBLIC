@@ -1,0 +1,99 @@
+{
+   "mainSettings":
+   {
+        "doFiltering": true,
+        "doSampling":  true,
+        "doBinning":   true,
+        "dumpFormat": "json",   
+        "FieldsToRegister":
+        {
+            "Vectorfields": "  velocity_x",
+            "Scalarfields": "voidfraction" 
+        },
+         "filterBCs":
+        {
+        "x":"periodic",
+        "y":"periodic",
+        "z":"periodic"
+        },
+        "input File": "test.csv",
+        "verbose": false,
+        "storageWriteFields"    :  true,
+        "storageWriteParticles" :  false,
+        "interfaceWriteFields" :  true
+   },
+  
+   "myFilter0":	  { 
+                     "CoordSys" :  0, 
+                     "x"        :  0.25, 
+                     "y"        :  0.25,
+                     "z"        :  0.25
+                  },
+   "myFilter1":	  { 
+                     "CoordSys" :  0, 
+                     "x"        :  0.5, 
+                     "y"        :  0.5,
+                     "z"        :  0.5
+                  },
+   "myFilter2":	  { 
+                     "CoordSys" :  0, 
+                     "x"        :  1.0, 
+                     "y"        :  1.0,
+                     "z"        :  1.0
+                  },
+   "filtFavre": 
+            {
+             "type":"Favre",
+             "VectorfieldsToFilter" : " velocity_x ",
+             "ScalarfieldsToFilter" : " ",
+             "phaseFractionField"   : "voidfraction",
+             "lagrangian"           : false,
+             "invertPhaseFraction"  : false
+            },
+   
+   "filtAlg": 
+            {
+             "type":"Algebraic",
+             "VectorfieldsToFilter": " ",
+             "ScalarfieldsToFilter": "voidfraction",
+             "lagrangian": false
+            },
+                  
+   "sample0": {
+                  "type"            : "general",
+                  "marker"         : "voidfraction",
+                  "VFieldsToSample"   : "velocity_x",
+                  "component"   : 0,
+                  "sampleCount"     : -1,
+                  "save2Disk"       : true,
+                  "save2Bin"        : true,
+                  "lagrangian"      : false,
+                  "overwrite"       : true                  
+               },
+   
+   "bin0": {
+                  "bincount"        : 20,
+                  "binUpBorder"     : 0.70,
+                  "binLowBorder"    : 0,
+                  "overwrite"       : true
+           },
+             
+   "sample1": {
+                  "type"            : "general",
+                  "marker"         : "voidfraction",
+                  "VFieldsToSample"   : "velocity_x",
+                  "component"   : 1,
+                  "sampleCount"     : -1,
+                  "save2Disk"       : true,
+                  "save2Bin"        : true,
+                  "lagrangian"      : false,
+                  "overwrite"       : true                  
+               },
+   
+   "bin1": {
+                  "bincount"        : 20,
+                  "binUpBorder"     : 0.50,
+                  "binLowBorder"    : 0,
+                  "overwrite"       : true
+           }
+}    
