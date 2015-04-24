@@ -63,6 +63,8 @@ License
 using namespace Foam;
 using namespace C3PO_NS;
 
+#define PI 3.14159265359
+
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 // Main program:
 
@@ -155,15 +157,24 @@ int main(int argc, char *argv[])
     double r2 = x*x+y*y+z*z;
     double r = std::sqrt(r2);
     
-    if (r > 0.5) 
+    if (r > radius_) 
     {
-     double argTheta_ = x/r;
-     double argPhi_ = y/z;
+     double cosTheta = x/r;
+     double tanPhi_;
+     double phi;
+    if(abs(z)<1e-03)
+    {
+     if (y<0) phi=-PI/2;
+     else phi=PI/2;
+    }
+    else
+    {
+     tanPhi_= y/z;
+     phi = std::atan( tanPhi_ );     
+    }
     
-     double theta = std::acos( argTheta_ );
-     double phi = std::atan( argPhi_ );
+     double theta = std::acos( cosTheta );
      double sinTheta = std::sin(theta);
-     double cosTheta = std::cos(theta);
     //Calculate spherical symmetric components
    
      double U_r =        U[celli].component(0) //the internal field has to be the field at infinite  
@@ -186,10 +197,15 @@ int main(int argc, char *argv[])
    
     U[celli].component(0) = U_r * cosTheta - U_theta * sinTheta;
    
-  //  U[celli].component(1) = std::sin(phi)*(U_r * sinTheta + U_theta * cosTheta);
-   
-  //  U[celli].component(2) = std::cos(phi)*( U_r * sinTheta + U_theta * cosTheta);
-   
+   if(z>0)
+   {
+     U[celli].component(1) = ( U_r * sinTheta + U_theta * cosTheta )*std::sin(phi);
+     U[celli].component(2) =  ( U_r * sinTheta + U_theta * cosTheta )*std::cos(phi);
+   }   
+   else 
+   { U[celli].component(1) = -( U_r * sinTheta + U_theta * cosTheta )*std::sin(phi);
+     U[celli].component(2) =  -( U_r * sinTheta + U_theta * cosTheta )*std::cos(phi);
+  }
   } 
    }
   // U.correctBoundaryConditions();

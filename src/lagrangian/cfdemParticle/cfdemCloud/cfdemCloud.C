@@ -353,6 +353,21 @@ void Foam::cfdemCloud::setForces()
     for (int i=0;i<cfdemCloud::nrForceModels();i++) cfdemCloud::forceM(i).setForce();
 }
 
+void Foam::cfdemCloud::setVoidFraction()
+{
+    cfdemCloud::voidFractionM().setvoidFraction(NULL,voidfractions_,particleWeights_,particleVolumes_,particleV_);
+}
+
+void Foam::cfdemCloud::resetVoidFraction()
+{
+    cfdemCloud::voidFractionM().resetVoidFractions();
+}
+
+void Foam::cfdemCloud::setAlpha(volScalarField& alpha)
+{
+    alpha = cfdemCloud::voidFractionM().voidFractionInterp();
+}
+
 void Foam::cfdemCloud::setParticleForceField()
 {
     averagingM().setVectorSum
@@ -438,6 +453,11 @@ int Foam::cfdemCloud::nrForceModels()
     return forceModels_.size();
 }
 
+double** Foam::cfdemCloud::cellsPerParticle()
+{
+    return voidFractionModel_().cellsPerParticle();
+}
+
 scalar Foam::cfdemCloud::voidfraction(int index)
 {
     return voidfractions()[index][0];
@@ -498,7 +518,7 @@ bool Foam::cfdemCloud::evolve
                      << "\n- resetVolFields()" << endl;
             }
             averagingM().resetVectorAverage(averagingM().UsPrev(),averagingM().UsNext(),false);
-            voidFractionM().resetVoidFractions();
+            resetVoidFraction();
             averagingM().resetVectorAverage(forceM(0).impParticleForces(),forceM(0).impParticleForces(),true);
             averagingM().resetVectorAverage(forceM(0).expParticleForces(),forceM(0).expParticleForces(),true);
             averagingM().resetWeightFields();
@@ -523,7 +543,7 @@ bool Foam::cfdemCloud::evolve
             // set void fraction field
             clockM().start(19,"setvoidFraction");
             if(verbose_) Info << "- setvoidFraction()" << endl;
-            voidFractionM().setvoidFraction(NULL,voidfractions_,particleWeights_,particleVolumes_,particleV_);
+            setVoidFraction();
             if(verbose_) Info << "setvoidFraction done." << endl;
             clockM().stop("setvoidFraction");
 
@@ -553,7 +573,7 @@ bool Foam::cfdemCloud::evolve
         clockM().start(24,"interpolateEulerFields");
 
         // update voidFractionField
-        alpha = voidFractionM().voidFractionInterp();
+        setAlpha(alpha);
         if(dataExchangeM().couplingStep() < 2)
         {
             alpha.oldTime() = alpha; // supress volume src

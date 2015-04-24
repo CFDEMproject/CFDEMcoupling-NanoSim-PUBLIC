@@ -33,10 +33,7 @@ Description
 
 #include "dividedVoidFraction.H"
 #include "addToRunTimeSelectionTable.H"
-#include "locateModel.H"
-#include "dataExchangeModel.H"
 
-//#include "mpi.h"
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
@@ -73,6 +70,7 @@ dividedVoidFraction::dividedVoidFraction
     cfdemUseOnly_(false)
 {
     maxCellsPerParticle_ = 29;
+    //particleCloud_.setMaxCellsPerParticle(29);
 
     if(alphaMin_ > 1 || alphaMin_ < 0.01){ FatalError<< "alphaMin should be < 1 and > 0.01 !!!" << abort(FatalError); }
     if (propsDict_.found("interpolation")){

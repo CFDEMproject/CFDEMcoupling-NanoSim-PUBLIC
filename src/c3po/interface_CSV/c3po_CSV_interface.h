@@ -62,16 +62,22 @@ namespace C3PO_NS
   void checkParticles() const;
   
   void clearParticles() const;
+    
+  void runC3po() const;
+  
+  void FLUENTrunC3PO() const;
+    
+  private:
   
   void parseFile() const;
   
   void registerC3poFields() const; 
   
-  void runC3po() const;
-  
   void printCSV(int id) const;
   
-  void readC3POinput() const;
+  void readInput() const;
+  
+  void createFileList() const;
   
   void deleteC3POfields() const;
   
@@ -85,9 +91,9 @@ namespace C3PO_NS
   
   void deleteFields() const;
   
-  void FLUENTrunC3PO() const;
-    
-  private:
+  void resetAllFields() const;
+  
+  
   
   c3po* myC3po_;
   
@@ -121,6 +127,8 @@ namespace C3PO_NS
   
   mutable int   NofFiltFields_;
   
+  mutable int   NofFiltVarianceFields_;
+  
   mutable int   timeId_;
   
   mutable bool  outDirGenerated_;
@@ -128,6 +136,8 @@ namespace C3PO_NS
   mutable bool twoD_;
   
   mutable std::vector<double*> dummyZ;
+  
+  mutable std::vector<std::string> fileList_;
   
  };
 }

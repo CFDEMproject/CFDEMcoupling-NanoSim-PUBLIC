@@ -40,7 +40,6 @@ SourceFiles
 #define dividedVoidFraction_H
 
 #include "voidFractionModel.H"
-#include "interpolationCellPoint.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

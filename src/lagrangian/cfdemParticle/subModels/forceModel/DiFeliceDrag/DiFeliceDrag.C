@@ -34,8 +34,6 @@ Description
 #include "DiFeliceDrag.H"
 #include "addToRunTimeSelectionTable.H"
 
-//#include "mpi.h"
-
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
@@ -122,7 +120,7 @@ void DiFeliceDrag::setForce() const
 
     const volScalarField& nufField = forceSubM(0).nuField();
     const volScalarField& rhoField = forceSubM(0).rhoField();
-    
+
     vector position(0,0,0);
     scalar voidfraction(1);
     vector Ufluid(0,0,0);
@@ -149,7 +147,6 @@ void DiFeliceDrag::setForce() const
             cellI = particleCloud_.cellIDs()[index][0];
             drag = vector(0,0,0);
             dragExplicit = vector(0,0,0);
-            dragCoefficient=0;
             Ufluid =vector(0,0,0);
 
             if (cellI > -1) // particle Found
@@ -173,6 +170,7 @@ void DiFeliceDrag::setForce() const
                 magUr = mag(Ur);
                 Rep = 0;
                 Cd = 0;
+                dragCoefficient = 0;
 
                 if (magUr > 0)
                 {
@@ -204,6 +202,7 @@ void DiFeliceDrag::setForce() const
                 if(forceSubM(0).verbose() && index >-1 && index <102)
                 {
                     Pout << "index = " << index << endl;
+                    Pout << "scaleDrag_ = " << scaleDrag_ << endl;
                     Pout << "Us = " << Us << endl;
                     Pout << "Ur = " << Ur << endl;
                     Pout << "ds/scale = " << ds/scaleDia_ << endl;

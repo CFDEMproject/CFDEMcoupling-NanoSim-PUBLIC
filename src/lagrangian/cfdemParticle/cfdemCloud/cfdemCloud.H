@@ -127,6 +127,8 @@ protected:
 
     int numberOfParticles_;
 
+    //mutable int maxCellsPerParticle_; // lives now in voidFractionModel.H
+
     scalar d32_;
 
     bool numberOfParticlesChanged_;
@@ -202,6 +204,12 @@ protected:
 
     virtual void setForces();
 
+    virtual void setVoidFraction();
+
+    virtual void resetVoidFraction();
+
+    virtual void setAlpha(volScalarField&);
+
     virtual void setParticleForceField();
 
     virtual void setVectorAverages();
@@ -244,6 +252,8 @@ public:
        virtual const forceModel& forceM(int);
 
        virtual int nrForceModels();
+
+       virtual double** cellsPerParticle();
 
        scalar voidfraction(int);
 
@@ -335,6 +345,10 @@ public:
        inline bool numberOfParticlesChanged() const;
 
        inline int numberOfClumps() const;
+
+       //inline void setMaxCellsPerParticle(int) const;
+
+       //inline int maxCellsPerParticle() const;
 
        inline bool arraysReallocated() const;
 

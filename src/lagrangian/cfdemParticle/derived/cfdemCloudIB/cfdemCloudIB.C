@@ -174,7 +174,7 @@ void Foam::cfdemCloudIB::calcVelocityCorrection
     {
         //if(regionM().inRegion()[index][0])
         //{
-            for(int subCell=0;subCell<voidFractionM().cellsPerParticle()[index][0];subCell++)
+            for(int subCell=0;subCell<cellsPerParticle()[index][0];subCell++)
             {
                 //Info << "subCell=" << subCell << endl;
                 cellI = cellIDs()[index][subCell];

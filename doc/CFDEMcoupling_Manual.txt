@@ -301,4 +301,5 @@ listing below of styles within certain commands.
 "voidfractionModel_IBVoidFraction"_voidFractionModel_IBVoidFraction.html,
 "voidfractionModel_bigParticleVoidFraction"_voidFractionModel_bigParticleVoidFraction.html,
 "voidfractionModel_centreVoidFraction"_voidFractionModel_centreVoidFraction.html,
-"voidfractionModel_dividedVoidFraction"_voidFractionModel_dividedVoidFraction.html :tb(c=2,ea=c)
+"voidfractionModel_dividedVoidFraction"_voidFractionModel_dividedVoidFraction.html,
+"voidfractionModel_noVoidFractionVoidFraction"_voidFractionModel_noVoidFraction.html :tb(c=2,ea=c)

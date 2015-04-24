@@ -41,7 +41,7 @@ solvers
         relTol          0;
     }
 
-    "(voidfraction|Us|Ksl|dSmoothing|UsNext|voidfractionNext)"
+    "(voidfractionNext|UsNext|sSmoothField|vSmoothField)"
     {
         solver          PCG;
         preconditioner  DIC;

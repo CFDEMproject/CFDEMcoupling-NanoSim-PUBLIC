@@ -56,7 +56,9 @@ int main(int argc, char **argv)
  c3po_->clearParticles();
  
  delete c3po_;
- std::cout << "\n end of program \n";
+ std::cout << "\n**************************** \n";
+ std::cout << "*c3po_csv - end of program * \n";
+ std::cout << "**************************** \n";
  MPI_Barrier(MPI_COMM_WORLD);
  if(nprocs_>1) MPI_Finalize();
  return 0;

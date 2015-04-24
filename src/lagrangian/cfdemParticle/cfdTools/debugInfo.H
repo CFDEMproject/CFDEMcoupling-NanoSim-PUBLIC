@@ -26,7 +26,7 @@
       particleVolume_radius += radii_[index][0]*radii_[index][0]*radii_[index][0]*4./3.*3.1415;
       
       // loop subCells
-      for(int subCell=0;subCell<voidFractionM().cellsPerParticle()[index][0];subCell++)
+      for(int subCell=0;subCell<cellsPerParticle()[index][0];subCell++)
       {
           points++;
           totalParticleWeights += particleWeights_[index][subCell];
@@ -40,7 +40,7 @@
       // check if a particle is inside cell
       bool particleInside=false;
       for(int index = 0;index <  numberOfParticles(); ++index){
-          for(int subCell=0;subCell<voidFractionM().cellsPerParticle()[index][0];subCell++){
+          for(int subCell=0;subCell<cellsPerParticle()[index][0];subCell++){
               if(cellIDs_[index][subCell] == cellI){
                   particleInside=true;
                   break;

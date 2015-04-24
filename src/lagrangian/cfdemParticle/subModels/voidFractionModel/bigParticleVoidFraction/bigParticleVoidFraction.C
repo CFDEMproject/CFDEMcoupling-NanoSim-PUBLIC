@@ -72,6 +72,7 @@ bigParticleVoidFraction::bigParticleVoidFraction
     Info << "\n\n W A R N I N G - this model does not yet work properly! \n\n" << endl;
     //reading maxCellsPerParticle from dictionary
     maxCellsPerParticle_=readLabel(propsDict_.lookup("maxCellsPerParticle"));
+    //particleCloud_.setMaxCellsPerParticle(readLabel(propsDict_.lookup("maxCellsPerParticle"))); // alternative to line above
     if(alphaMin_ > 1 || alphaMin_ < 0.01){ FatalError<< "alphaMin shloud be > 1 and < 0.01." << abort(FatalError); }
 
     checkWeightNporosity(propsDict_);

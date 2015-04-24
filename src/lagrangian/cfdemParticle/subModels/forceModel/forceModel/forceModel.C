@@ -129,7 +129,13 @@ Info << "now providing a scalar field" << endl;
 
 void forceModel::manipulateScalarField(volScalarField& field) const
 {
-    Info << "no scalar manipulation done" << endl;
+    Info << "no scalar manipulation done." << endl;
+    // do nothing
+}
+
+void forceModel::manipulateScalarField(volScalarField& field, int speciesID) const
+{
+    Info << "no scalar manipulation done." << endl;
     // do nothing
 }
 

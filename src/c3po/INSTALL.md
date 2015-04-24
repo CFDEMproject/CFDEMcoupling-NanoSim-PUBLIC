@@ -31,7 +31,7 @@ Most important, in your .bashrc file, please include a section to set the main s
 
 > export USEHDF5=true
 
-C3PO, as well as CFDEM, will respect this switch by additing path and names of relevant libraries to the "additionalLibs" file that is used to link additional libraries to the applications.
+Please make sure that an "additionalLibs" file is found and adapted to your system by defining the environmant variable CFDEM_ADD_LIBS_DIR. It is used to link additional libraries to the applications.
 
 Also, it is useful to have a HDF5 viewer installed. Visit [this homepage](http://www.hdfgroup.org/products/java/release/download.html) to install 'hdfview'. Just download the installation script, and follow the installation instructions.
 
@@ -66,6 +66,8 @@ Be sure you have correctly set up Octave (including `JSONLAB`) for post processi
 ### Environment Variables
 Be sure you have correctly set the variables C3PO_SRC_DIR, e.g., in your .bashrc you should have:
 
+>export C3PO_ADD_LIBS_DIR=$HOME/CFDEM/C3PO
+
 >export C3PO_SRC_DIR=$HOME/CFDEM/CFDEMcoupling-YOURCFDEMDISTRO/src/c3po
 
 >export C3PO_QT5_DIR=$HOME/Qt/5.3/gcc_64
@@ -82,13 +84,15 @@ Be sure you have correctly set the variables C3PO_SRC_DIR, e.g., in your .bashrc
 
 >. $C3PO_SRC_DIR/etc/bashrc
 
+The C3PO_ADD_LIBS_DIR must point to an existing directory of the user's choice. The directory must contain a file called "additionalLibs" that is used to defined which libraries are linked the OpenFOAM(R)-type applications in the CPPPO package. The user has to provide this file. There is a template file "additionalLibs_C3PO_PARSCALE" in the folder src/lagrangian/cfdemParticle/etc/.
+
 WARNING: In case the compiler can not find the HDF5 library path try replacing /lib with /lib64 in C3PO_HDF5_LIB:
 
 >export C3PO_HDF5_LIB=$C3PO_HDF5_DIR/lib64
 
 Note that we just described standard paths to /include and /lib folders. Paths in your system may be different.
 
-The lines 'export C3PO_HDF5_DIR=' is used to decide whether C3PO is compiled with or without HDF5 capability: if C3PO_HDF5_DIR is not set, C3PO will not compile its HDF5 modules, and hence will not link a HDF5 library (see the 'compileMe' script!). To force that the HDF5 modules are NOT compiled, you can set the environmental variable 'USEHDF5' to false (see the HDF section above).
+The lines 'export C3PO_HDF5_DIR=' is used to decide whether CPPPO is compiled with or without HDF5 capability: if C3PO_HDF5_DIR is not set, C3PO will not compile its HDF5 modules, and hence will not link a HDF5 library (see the 'compileMe' script!). To force that the HDF5 modules are NOT compiled, you can set the environmental variable 'USEHDF5' to false (see the HDF section above).
 
 In case your compiler cannot find mpi.h, set the variable 
 
@@ -102,13 +106,13 @@ the C3PO packages consists of a core library (in ./core), interface modules that
 
 To build all libraries and applications, use the 
 
-> compileMe
+> c3poComp
 
 script. Note, that the 'compileMe' script also triggers the installation or de-installation of the HDF5 modules. This script will also generate the Makefile.lib file. 
 
-> cleanMe
+> c3poClean
 
-script will clean all libraries and applications, as well as reset the make files to NOT include the HDF5 modules.
+alias will call the cleanMe script and clean all libraries and applications, as well as reset the make files to NOT include the HDF5 modules.
 
 
 Building the C3PO Core Main Application ./core

@@ -115,33 +115,30 @@ void ArchimedesIB::setForce() const
 
     for(int index = 0;index <  particleCloud_.numberOfParticles(); ++index)
     {
-        //if(mask[index][0])
-        //{
-            force=vector::zero;
-            for(int subCell=0;subCell<particleCloud_.voidFractionM().cellsPerParticle()[index][0];subCell++)
+        force=vector::zero;
+        for(int subCell=0;subCell<particleCloud_.cellsPerParticle()[index][0];subCell++)
+        {
+            label cellI = particleCloud_.cellIDs()[index][subCell];
+            if (cellI > -1) // particle Found
             {
-                label cellI = particleCloud_.cellIDs()[index][subCell];
-                if (cellI > -1) // particle Found
-                {
-                    //force += -g_.value()*forceSubM(0).rhoField()[cellI]*forceSubM(0).rhoField().mesh().V()[cellI]*(1-particleCloud_.voidfractions()[index][subCell]);//mod by alice
-                	force += -g_.value()*forceSubM(0).rhoField()[cellI]*particleCloud_.mesh().V()[cellI]*(1-voidfractions_[cellI]);//mod by alice
-        	    }
-            }
+                //force += -g_.value()*forceSubM(0).rhoField()[cellI]*forceSubM(0).rhoField().mesh().V()[cellI]*(1-particleCloud_.voidfractions()[index][subCell]);//mod by alice
+            	force += -g_.value()*forceSubM(0).rhoField()[cellI]*particleCloud_.mesh().V()[cellI]*(1-voidfractions_[cellI]);//mod by alice
+    	    }
+        }
 
-            //Set value fields and write the probe
-            if(probeIt_)
-            {
-                #include "setupProbeModelfields.H"
-                vValues.append(force);           //first entry must the be the force
-                particleCloud_.probeM().writeProbe(index, sValues, vValues);
-            }
+        //Set value fields and write the probe
+        if(probeIt_)
+        {
+            #include "setupProbeModelfields.H"
+            vValues.append(force);           //first entry must the be the force
+            particleCloud_.probeM().writeProbe(index, sValues, vValues);
+        }
 
-            // set force on particle
-            if(twoDimensional_) Warning<<"ArchimedesIB model doesn't work for 2D right now!!\n"<< endl;
+        // set force on particle
+        if(twoDimensional_) Warning<<"ArchimedesIB model doesn't work for 2D right now!!\n"<< endl;
 
-            // write particle based data to global array
-            forceSubM(0).partToArray(index,force,vector::zero);
-        //}
+        // write particle based data to global array
+        forceSubM(0).partToArray(index,force,vector::zero);
     }
 }
 

@@ -88,23 +88,20 @@ void dilute::setScalarAverage
 
     for(int index=0; index< particleCloud_.numberOfParticles(); index++)
     {
-        //if(mask[index][0])
-        //{
-            for(int subCell=0;subCell<particleCloud_.voidFractionM().cellsPerParticle()[index][0];subCell++)
+        for(int subCell=0;subCell<particleCloud_.cellsPerParticle()[index][0];subCell++)
+        {
+            //Info << "subCell=" << subCell << endl;
+            cellI = particleCloud_.cellIDs()[index][subCell];
+
+            if (cellI >= 0)
             {
-                //Info << "subCell=" << subCell << endl;
-                cellI = particleCloud_.cellIDs()[index][subCell];
+                valueScal = value[index][0];
+                weightP = weight[index][0];
+                weightField[cellI] += weightP;
 
-                if (cellI >= 0)
-                {
-                    valueScal = value[index][0];
-                    weightP = weight[index][0];
-                    weightField[cellI] += weightP;
-
-                    field[cellI] = valueScal/weightP;
-                }
+                field[cellI] = valueScal/weightP;
             }
-        //}
+        }
     }
 
     // correct cell values to patches
@@ -126,23 +123,20 @@ void dilute::setVectorAverage
 
     for(int index=0; index< particleCloud_.numberOfParticles(); index++)
     {
-        //if(mask[index][0])
-        //{
-            for(int subCell=0;subCell<particleCloud_.voidFractionM().cellsPerParticle()[index][0];subCell++)
-            {
-                //Info << "subCell=" << subCell << endl;
-                cellI = particleCloud_.cellIDs()[index][subCell];
+        for(int subCell=0;subCell<particleCloud_.cellsPerParticle()[index][0];subCell++)
+        {
+            //Info << "subCell=" << subCell << endl;
+            cellI = particleCloud_.cellIDs()[index][subCell];
 
-                if (cellI >= 0)
-                {
-                    for(int i=0;i<3;i++) valueVec[i] = value[index][i];
-                    weightP = weight[index][subCell];
-                    weightField[cellI] += weightP;
-                    if(weightP > 0) field[cellI] = valueVec; //field[cellI] = valueVec/weightP;
-                    else Warning << "!!! W A R N I N G --- weightP <= 0" << endl;
-                }
+            if (cellI >= 0)
+            {
+                for(int i=0;i<3;i++) valueVec[i] = value[index][i];
+                weightP = weight[index][subCell];
+                weightField[cellI] += weightP;
+                if(weightP > 0) field[cellI] = valueVec; //field[cellI] = valueVec/weightP;
+                else Warning << "!!! W A R N I N G --- weightP <= 0" << endl;
             }
-        //}
+        }
     }
 
     // correct cell values to patches

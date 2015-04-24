@@ -122,7 +122,7 @@ void ShirgaonkarIB::setForce() const
         //{
             drag=vector::zero;
 
-            for(int subCell=0;subCell<particleCloud_.voidFractionM().cellsPerParticle()[index][0];subCell++)
+            for(int subCell=0;subCell<particleCloud_.cellsPerParticle()[index][0];subCell++)
             {
                 //Info << "subCell=" << subCell << endl;
                 cellI = particleCloud_.cellIDs()[index][subCell];

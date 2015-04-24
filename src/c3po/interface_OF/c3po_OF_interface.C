@@ -85,6 +85,7 @@ c3poOFInterface::c3poOFInterface
 // * * * * * * * * * * * * * * * * Destructor * * * * * * * * * * * * * * //
 c3poOFInterface::~c3poOFInterface()
 {
+    deleteParticles();
     delete myC3po_;
     delete mCheck_;
 }
@@ -99,7 +100,6 @@ void c3poOFInterface::run()
  //clean everything
  MPI_Barrier(MPI_COMM_WORLD);
  deleteC3POfields();
- deleteParticles();
  
 }
 //* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -116,7 +116,6 @@ void c3poOFInterface::runIB()
  //clean everything
  MPI_Barrier(MPI_COMM_WORLD);
  deleteC3POfields();
- deleteParticles();
  
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -422,10 +421,12 @@ void c3poOFInterface::registerParticle(int id_, double m, double* pos_, double* 
  for(it = particleID_.begin(); it != particleID_.end(); it++)
   if(id_==*it)
    return;
+   
+ double TOLERANCE = 1e-10;
  
  //If the particle lies exactly on the boundary register it if it is the upper local boundary or the global lower boundary
  for (int i=0;i<3;i++)
-  if (((pos_[i] <= mCheck_->min_Domain()[i]) && (pos_[i] != mCheck_->min_Domain_Global()[i])) || (pos_[i] > mCheck_->max_Domain()[i]))
+  if (((pos_[i] <= mCheck_->min_Domain()[i] - TOLERANCE) && (pos_[i] != mCheck_->min_Domain_Global()[i])) || (pos_[i] > mCheck_->max_Domain()[i]+TOLERANCE))
    return;
 
  

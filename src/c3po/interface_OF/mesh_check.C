@@ -54,7 +54,11 @@ meshCheck::~meshCheck() {}
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 void meshCheck::checkMyMesh() const
 {
+    
+    C3po_->clearMesh();
+    
     double cell_num;
+    bool struct_;
    
     cell_num = returnReduce(mesh_.nCells(), sumOp<label>());                 //returns the number of cells in mesh_
     
@@ -111,13 +115,16 @@ void meshCheck::checkMyMesh() const
     if (h==(number_of_cells_[0]*number_of_cells_[1]*number_of_cells_[2]))
     {
         Pout << "meshCheck::checkMyMesh: mesh sucsessfully tested - all volumes are equal. You can use IJK selectors for this mesh." << endl;
+        struct_=true;
     }
     else
     {
         Info << "meshCheck::checkMyMesh: mesh sucsessfully tested - WARNING: volumes are NOT equal. Do not use IJK selectors for this mesh."<<   endl;
+        struct_=false;
 	
     } 
-
+    
+    C3po_->checkIJK(struct_);
 }
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 void meshCheck::registerC3POcells() const

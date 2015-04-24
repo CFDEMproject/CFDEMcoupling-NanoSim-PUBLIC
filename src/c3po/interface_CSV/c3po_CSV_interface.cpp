@@ -37,10 +37,14 @@ License
 #include <iostream>
 #include <stdlib.h> 
 #include <cmath>
+#include <sstream>
+#include <sys/stat.h>
 
-
+#define MAX_CHARS_PER_LINE 1024
 
 using namespace C3PO_NS;
+
+struct stat dirLogicCSV;
 
 c3poCSVinterface::c3poCSVinterface(MPI_Comm comm)
 :
@@ -76,18 +80,24 @@ twoD_(false)
  lagrangian_ = new CSVlagrangian(myC3po_,mesh_);
  
  outDirGenerated_ = false;
+ 
 }
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 c3poCSVinterface::~c3poCSVinterface()
 {
- deleteC3POfields();
- delete vecName_;
- delete csv_;
  delete myC3po_;
  delete mesh_;
 }
-
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+void c3poCSVinterface::resetAllFields() const
+{
+ deleteC3POfields();
+ delete vecName_;
+ delete csv_;
+ names_.clear();
+ Ffieldnames_.clear();
+}
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 void c3poCSVinterface::checkMesh() const
 {
@@ -109,17 +119,63 @@ void c3poCSVinterface::clearParticles() const
  lagrangian_->deleteParticles();
 }
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-void c3poCSVinterface::readC3POinput() const
+void c3poCSVinterface::createFileList() const
 {
 
- //get the csv input file name from CPPPO
- fileName_= myC3po_->getIfile();
+ if(comm_me_==0) system("ls data >fileList.c3po");
+ 
+ MPI_Barrier(MPI_COMM_WORLD);
+ 
+ std::ifstream ifnfile ("fileList.c3po",std::ifstream::in);
+ 
+ std::istream& infile_(ifnfile);
+
+ int haveData = 0; 
+
+ while (!infile_.eof())
+ { 
+  char buf[MAX_CHARS_PER_LINE];
+  infile_.getline(buf, MAX_CHARS_PER_LINE);
   
+  std::string tmp_("./data/");
+  unsigned int sizetmp_=tmp_.size();
+  
+  tmp_.append(buf);
+  
+  if(tmp_.size()!=sizetmp_) fileList_.push_back(tmp_);
+ 
+  haveData++;
+
+ }
+
+ if(haveData<2)
+ {
+     std::cout << "\n proc: " << comm_me_ 
+               << " -> Error: Could not read data from directory 'data'. Perhaps it is empty or not in place. \n";
+
+     MPI_Finalize();
+     exit(1);
+ }
+
+}
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+void c3poCSVinterface::readInput() const
+{ 
+ 
+ char buf[10];
+ sprintf(buf,"%i",timeId_);
+ 
+ myC3po_->setTime(buf);
+ 
+ fileName_.assign(fileList_[timeId_]);
  std::ifstream infile_ (fileName_.c_str(),std::ifstream::in);
     
  if (!infile_.is_open())
  {
-  std::cout << "\n proc: " << comm_me_ << " -> Error: the file named " << fileName_ << "can not be opened!\n";
+  std::cout << "\n proc: " << comm_me_ 
+            << " -> Error: the file named " 
+            << fileName_ << " cannot be opened!\n";
   MPI_Finalize();
   exit(1);
  }
@@ -136,8 +192,6 @@ void c3poCSVinterface::readC3POinput() const
  
  NofFields_ = NofVectors_*3 + myC3po_->getSFnamesNumber();
  
-
- 
 }
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -148,22 +202,21 @@ void c3poCSVinterface::parseFile() const
     
  if (!infile_.is_open())
  {
-  std::cout << "\n proc: " << comm_me_ << " -> Error: the file named " << fileName_ << "can not be opened!\n";
+  std::cout << "\n proc: " << comm_me_ << " -> Error: the file named " << fileName_ << " cannot be opened!\n";
   MPI_Finalize();
   exit(1);
  }
 
  std::istream& infile(infile_);    
 
- int n=-1;
+ int n=0;
  int s=0;
  std::vector<int> map;
 
 
  
    //Parsing the first line, i.e. the names
-  if (n==-1)
-  {
+ 
    std::string buf;
    std::vector<std::string> temp_;
    std::getline(infile,buf);
@@ -209,7 +262,7 @@ void c3poCSVinterface::parseFile() const
       if(vectory_)
       { 
        twoD_=true;
-       std::cout << "\nWARNING: two dimensional case detected ";
+       std::cout << "\nTwo dimensional case detected! \n";
        vectory_=false;
       } 
          
@@ -277,7 +330,7 @@ void c3poCSVinterface::parseFile() const
       if(vectory_)
       { 
        twoD_=true;
-       std::cout << "\nWARNING: two dimensional case detected ";
+       std::cout << "\nTwo dimensional case detected! \n";
        vectory_=false;
       } 
           
@@ -289,7 +342,7 @@ void c3poCSVinterface::parseFile() const
    if(vectory_  && !twoD_)
    {
     twoD_=true;
-    std::cout << "\nWARNING: two dimensional case detected ";
+    std::cout << "\nTwo dimensional case detected! \n";
    }
 
    
@@ -332,7 +385,7 @@ void c3poCSVinterface::parseFile() const
      for(int i=0;i<NofFields_;i++)
       csv_[i] = new double[*(mesh_->NofCells())];
    }
-  }      //Skipping those lines that do not belong to this processor 
+        //Skipping those lines that do not belong to this processor 
 
  while (!infile.eof())
  {
@@ -454,8 +507,13 @@ void c3poCSVinterface::printCSV(int id) const
  //create directory
  if( (!outDirGenerated_) && (comm_me_==0) )
  {
-        std::string command("mkdir "+fileName_);
-        system(command.c_str());
+        if(stat(fileName_.c_str(), &dirLogicCSV) == 0 && S_ISDIR(dirLogicCSV.st_mode))
+            std::cout << ""; 
+        else
+        {
+            std::string command("mkdir "+fileName_);
+            system(command.c_str());
+        }
         outDirGenerated_ = true;
  }
  MPI_Barrier(MPI_COMM_WORLD); //must sync here!
@@ -463,7 +521,7 @@ void c3poCSVinterface::printCSV(int id) const
  
  fileName_.append(filterName_);
  char buf[80];
- sprintf(buf,"_time%i",timeId_);
+ sprintf(buf,"_time%i.csv",timeId_);
  fileName_.append(buf);
  
  if(comm_me_==0)
@@ -471,12 +529,14 @@ void c3poCSVinterface::printCSV(int id) const
    std::ofstream outfile_(fileName_.c_str());
   
    //writing the header
-   for(int i=0;i<NofFiltFields_;i++)
+   for(int i=0;i<NofFiltFields_+NofFiltVarianceFields_;i++)
    {
-    if(i==NofFiltFields_-1)
-     outfile_ << Ffieldnames_[i] << std::endl;
+    if(i==NofFiltFields_+NofFiltVarianceFields_-1)
+     outfile_ << Ffieldnames_[i+id*(NofFiltFields_+NofFiltVarianceFields_)] 
+              << std::endl;
     else
-     outfile_ << Ffieldnames_[i] << ",";
+     outfile_ << Ffieldnames_[i+id*(NofFiltFields_+NofFiltVarianceFields_)]  
+              << ",";
    }
  }
  
@@ -500,9 +560,9 @@ void c3poCSVinterface::printCSV(int id) const
    std::ofstream outfile_(fileName_.c_str(), std::ios::out | std::ios::app);
   
    //writing data
-   for(int i=0;i<NofFiltFields_;i++)
+   for(int i=0;i<NofFiltFields_+NofFiltVarianceFields_;i++)
    {
-    if(i==NofFiltFields_-1)
+    if(i==NofFiltFields_+NofFiltVarianceFields_-1)
      outfile_ << fields_[i][id_] << std::endl;
     else
      outfile_ << fields_[i][id_] << ",";
@@ -530,27 +590,33 @@ void c3poCSVinterface::createFilterFields(int id) const
  std::string filterName_(myC3po_->getFilterName(id));
  int OpFilterNum_ = myC3po_->getOpFiltNum();
  NofFiltFields_=0;
+ NofFiltVarianceFields_=0;
  int cell_per_proc = *(mesh_->NofCells());
  
  for(int i=0;i<OpFilterNum_;i++)
-  NofFiltFields_ += 3*myC3po_->vectorFTF(i).size() + myC3po_->scalarFTF(i).size();
+ {
+  NofFiltFields_ += 3*myC3po_->vectorFTF(i).size() 
+                  +   myC3po_->scalarFTF(i).size();
+  NofFiltVarianceFields_ += 3*myC3po_->vectorFTFVariance(i).size() 
+                         +    myC3po_->scalarFTFVariance(i).size();
+ }
  
  //creating arrays for filtering operations 
- fields_ = new double*[NofFiltFields_];
- for (int i=0;i<NofFiltFields_;i++)
+ fields_ = new double*[NofFiltFields_+NofFiltVarianceFields_];
+ for (int i=0;i<(NofFiltFields_+NofFiltVarianceFields_);i++)
   fields_[i] = new double[cell_per_proc];
   
  int s=0;
  for(int n=0;n<OpFilterNum_;n++)
  {
-  std::vector<std::string> vectorFields_(myC3po_->vectorFTF(n));
-  std::vector<std::string> scalarFields_(myC3po_->scalarFTF(n));
+
   std::string OpName_(myC3po_->getOpFilterName(n));
-  
+
+  //Filtered fields
   for( int j=0;j<NofFields_; j++)
-   for(unsigned int i=0;i<vectorFields_.size();i++)
-    if (names_[j].compare(vectorFields_[i])==0)
-     {
+   for(unsigned int i=0;i<(myC3po_->vectorFTF(n)).size();i++)
+    if (names_[j].compare((myC3po_->vectorFTF(n))[i])==0)
+    {
       std::string fieldName_(names_[j]); 
       fieldName_.append("_");
       fieldName_.append(OpName_.c_str()); 
@@ -561,21 +627,58 @@ void c3poCSVinterface::createFilterFields(int id) const
       Ffieldnames_.push_back(fieldName_+"_z"); 
       myC3po_->registerVF(names_[j],fields_[s],fields_[s+1],fields_[s+2]);
       s+=3;
-     }
+    }
   
  for( int j=0;j<NofFields_; j++)
-   for(unsigned int i=0;i<scalarFields_.size();i++)
-    if (names_[j].compare(scalarFields_[i])==0)
-     {
+   for(unsigned int i=0;i<(myC3po_->scalarFTF(n)).size();i++)
+    if (names_[j].compare((myC3po_->scalarFTF(n))[i])==0)
+    {
       std::string fieldName_(names_[j]); 
       fieldName_.append("_");
       fieldName_.append(OpName_.c_str()); 
       fieldName_.append("_");
       fieldName_.append(filterName_.c_str()); 
-       Ffieldnames_.push_back(fieldName_);      
+      Ffieldnames_.push_back(fieldName_);      
       myC3po_->registerSF(names_[j],fields_[s]);
       s++;
-     }
+    }
+    
+  //Variance fields
+  for( int j=0;j<NofFields_; j++)
+   for(unsigned int i=0;i<(myC3po_->vectorFTFVariance(n)).size();i++)
+    if (names_[j].compare((myC3po_->vectorFTFVariance(n))[i])==0)
+    {
+      std::string fieldName_(names_[j]); 
+      fieldName_.append("_");
+      fieldName_.append(OpName_.c_str()); 
+      fieldName_.append("_variance");
+      std::ostringstream Str; Str << i;  fieldName_.append(Str.str());
+      fieldName_.append("_");
+      fieldName_.append(filterName_.c_str()); 
+      Ffieldnames_.push_back(fieldName_+"_x");
+      Ffieldnames_.push_back(fieldName_+"_y");
+      Ffieldnames_.push_back(fieldName_+"_z"); 
+      myC3po_->registerVF(names_[j],fields_[s],fields_[s+1],fields_[s+2]);
+      s+=3;
+    }
+    
+  for( int j=0;j<NofFields_; j++)
+   for(unsigned int i=0;i<(myC3po_->scalarFTFVariance(n)).size();i++)
+    if (names_[j].compare((myC3po_->scalarFTFVariance(n))[i])==0)
+    {
+      std::string fieldName_(names_[j]); 
+      fieldName_.append("_");
+      fieldName_.append(OpName_.c_str()); 
+      fieldName_.append("_variance");
+      std::ostringstream Str; Str << i;  fieldName_.append(Str.str());
+      fieldName_.append("_");
+      fieldName_.append(filterName_.c_str()); 
+      Ffieldnames_.push_back(fieldName_);      
+      myC3po_->registerSF(names_[j],fields_[s]);
+      s++;
+    }
+
+ 
  }
 }
 
@@ -612,6 +715,7 @@ int NofFilters_=myC3po_->numberOfFilters();
    runBinning();
    deleteFields(); 
   }
+
 }
 
 // ******************************************
@@ -627,9 +731,24 @@ void c3poCSVinterface::deleteC3POfields() const
 // ******************************************
 void c3poCSVinterface::FLUENTrunC3PO() const
 {
- readC3POinput();
- parseFile();
- registerC3poFields();
- runC3po();
+
+ createFileList();
+ for(unsigned int time=0;time<fileList_.size();time++) 
+ {
+ 
+  timeId_=time;
+  
+  if(comm_me_==0)
+   printf("\n===> CPPPO is processing time %i/%lu from file %s  \n",
+           timeId_,fileList_.size() -1,fileList_[time].c_str());
+  
+  readInput();
+  parseFile();
+  registerC3poFields();
+  runC3po();
+  resetAllFields();
+
+ }
+
 }
 

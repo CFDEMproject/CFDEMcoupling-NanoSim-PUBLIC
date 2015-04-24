@@ -28,3 +28,6 @@ cd $currDir
 cd applications/cfdemSolverIBScalar_c3po/
 wclean
 cd $currDir
+cd applications/pisoFoam_c3po/
+wclean
+cd $currDir

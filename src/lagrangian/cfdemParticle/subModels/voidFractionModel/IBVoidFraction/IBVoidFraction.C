@@ -74,6 +74,7 @@ IBVoidFraction::IBVoidFraction
     Info << "\n\n W A R N I N G - do not use in combination with differentialRegion model! \n\n" << endl;
     //Info << "\n\n W A R N I N G - this model does not yet work properly! \n\n" << endl;
     maxCellsPerParticle_=readLabel(propsDict_.lookup("maxCellsPerParticle"));
+    //particleCloud_.setMaxCellsPerParticle(readLabel(propsDict_.lookup("maxCellsPerParticle"))); // alternative to line above
 
     if(scaleUpVol_ < 1){ FatalError<< "scaleUpVol shloud be > 1."<< abort(FatalError); }
     if(alphaMin_ > 1 || alphaMin_ < 0.01){ FatalError<< "alphaMin shloud be > 1 and < 0.01." << abort(FatalError); }

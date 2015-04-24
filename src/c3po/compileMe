@@ -128,4 +128,27 @@ else
     wmake
     cd $currDir
   fi
+  
+   if [[ "$CFDEM_SRC_DIR" = "" ]] || [[ "$1" != "yes-CFDEM" ]]; then
+    echo '***WARNING***'
+    echo 'Could not find a valid definition for "CFDEM_SRC_DIR" or "yes-CFDEM" was NOT set. Will NOT install CFDEM applications.'
+    echo '***WARNING***'
+    echo ''
+  else
+    cd $currDir
+    cd applications/pisoFoam_c3po/
+
+    if [[ "$C3PO_HDF5_DIR" = "" ]] || [[ $USEHDF5 != true ]]; then   
+      echo '***WARNING***'
+      echo 'Could not find a valid definition for "C3PO_HDF5_DIR" or "USEHDF5" was not set to true in the .bashrc file. Will NOT install HDF5 capability.'
+
+      echo '***WARNING***'
+      echo ''
+    else  
+      echo 'Will install HDF5 capability into C3PO core now ...'
+      echo ''
+    fi
+    wmake
+    cd $currDir
+  fi
 fi
