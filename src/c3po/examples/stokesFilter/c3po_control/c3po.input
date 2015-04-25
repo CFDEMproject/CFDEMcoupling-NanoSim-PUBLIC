@@ -12,12 +12,12 @@ selector    cellUnstruct                    myCell8
 selector    cellUnstruct                    myCell9
 
 selector    filter                     0.75          #filters named as their filter-size
-selector    filter                     1.0   
+selector    filter                     1.00   
 selector    filter                     1.25  
-selector    filter                     1.5
+selector    filter                     1.50
 selector    filter                     1.75
-selector    filter                     2.0
+selector    filter                     2.00
 selector    filter                     2.25
-selector    filter                     2.5
+selector    filter                     2.50
 selector    filter                     2.75
-selector    filter                     3.0
+selector    filter                     3.00

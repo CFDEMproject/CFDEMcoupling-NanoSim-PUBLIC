@@ -529,7 +529,7 @@ if(input().dumpFormat().compare("json")==0)
     dataV_.push_back(data);
     
    }
-   output().createQJsonArrays(file_,"fields at particle centers",dataN_,dataV_,npar,true);
+   output().createQJsonArrays(file_,"fields_at_particle_centers",dataN_,dataV_,npar,true);
    
    for(unsigned int i=0;i<dataV_.size();i++)
     delete dataV_[i];

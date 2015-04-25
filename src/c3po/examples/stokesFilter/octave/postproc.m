@@ -8,50 +8,17 @@ x=linspace(1.5,6,10);
 val=linspace(1,4.5,10);
 sol=linspace(1,4.5,10);
 
-
-load ../c3po_dataStorage_particles/time_0_0.75_processor0.h5 ;
-val(1)= U_Favre_0(1,1);
-close all ;
-
-load ../c3po_dataStorage_particles/time_0_1.0_processor0.h5 ;
-val(2)= U_Favre_0(1,1);
-close all ;
-
-load ../c3po_dataStorage_particles/time_0_1.25_processor0.h5 ;
-val(3)= U_Favre_0(1,1);
-close all ;
-
-load ../c3po_dataStorage_particles/time_0_1.5_processor0.h5 ;
-val(4)= U_Favre_0(1,1);
-close all ;
-
-load ../c3po_dataStorage_particles/time_0_1.75_processor0.h5 ;
-val(5)= U_Favre_0(1,1);
-close all ;
-
-load ../c3po_dataStorage_particles/time_0_2.0_processor0.h5 ;
-val(6)= U_Favre_0(1,1);
-close all ;
-
-load ../c3po_dataStorage_particles/time_0_2.25_processor0.h5 ;
-val(7)= U_Favre_0(1,1);
-close all ;
-
-load ../c3po_dataStorage_particles/time_0_2.5_processor0.h5 ;
-val(8)= U_Favre_0(1,1);
-close all ;
-
-load ../c3po_dataStorage_particles/time_0_2.75_processor0.h5 ;
-val(9)= U_Favre_0(1,1);
-close all ;
-
-load ../c3po_dataStorage_particles/time_0_3.0_processor0.h5 ;
-val(10)= U_Favre_0(1,1);
-close all ;
-
-
+name=0.5;
 
 for i=1:10
+name=name+0.25;
+file=sprintf("../c3po_dataStorage_particles/time_0_%2.2f_processor0.json",name)
+
+dat=loadjson([file]);
+field_data =getfield(dat,"fields_at_particle_centers" );
+
+cell_data = struct2cell(field_data);
+val(i)=cell_data{1};
 
 sol(i)= 1 - 3/2 * (x(i)*x(i)-1)/(x(i)*x(i)*x(i)-1);
 

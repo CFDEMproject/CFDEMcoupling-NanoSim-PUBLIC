@@ -1,7 +1,0 @@
-# 1 "files"
-# 1 "<built-in>"
-# 1 "<command-line>"
-# 1 "files"
-mesh_check.C
-c3po_OF_interface.C
-LIB = $(FOAM_USER_LIBBIN)/libc3po

@@ -4,7 +4,7 @@
         "doFiltering": true,
         "doSampling":  false,
         "doBinning":   false,
-        "dumpFormat": "hdf5",
+        "dumpFormat": "json",
         "verbose": false,
         "FieldsToRegister":
         {
@@ -28,7 +28,7 @@
                      "CoordSys": 1, 
                      "r": 0.75
                   },
-  "1.0":        {
+  "1.00":        {
                      "CoordSys": 1,
                      "r": 1.0
                   },
@@ -36,7 +36,7 @@
                      "CoordSys": 1,
                      "r": 1.25
                   },
-   "1.5":        {
+   "1.50":        {
                      "CoordSys": 1,
                      "r": 1.5
                   },
@@ -47,7 +47,7 @@
                      "r": 1.75
                   },
 
-   "2.0":        {
+   "2.00":        {
                      "CoordSys": 1,
                      "r": 2.0
                   },
@@ -57,7 +57,7 @@
                      "r": 2.25
                   },
 
-   "2.5":        {
+   "2.50":        {
                      "CoordSys": 1,
                      "r": 2.5
                   },
@@ -66,7 +66,7 @@
                      "CoordSys": 1,
                      "r": 2.75
                   },
-   "3.0":        {
+   "3.00":        {
                      "CoordSys": 1,
                      "r": 3.0
                   },

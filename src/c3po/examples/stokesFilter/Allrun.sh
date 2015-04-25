@@ -14,4 +14,5 @@ cd octave
 octave postproc.m
 evince validation.eps
 evince solution.eps
-
+cd ..
+./Allclean
