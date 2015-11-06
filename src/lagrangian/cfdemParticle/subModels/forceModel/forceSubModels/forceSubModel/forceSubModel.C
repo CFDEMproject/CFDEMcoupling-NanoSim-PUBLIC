@@ -259,6 +259,22 @@ void forceSubModel::explicitCorr
     dragExplicit=vector::zero;
 }
 
+void forceSubModel::explicitCorrScalar(scalar& sourceKImplicit, 
+                                       scalar& sourceExplicit, 
+                                       scalar& areaTimesTransferCoefficient, 
+                                       scalar& fluidProperty, 
+                                       const   scalar& fluidPropertyCell, 
+                                       scalar& particleProperty, 
+                                       bool    verbose, 
+                                       label   index) const
+{
+
+    //everything is explicit, no verbose
+    sourceExplicit  = areaTimesTransferCoefficient * (fluidProperty - particleProperty);
+    sourceKImplicit = 0.0;
+
+}
+
 void forceSubModel::explicitLimit
 (
     vector& dragImplicit,

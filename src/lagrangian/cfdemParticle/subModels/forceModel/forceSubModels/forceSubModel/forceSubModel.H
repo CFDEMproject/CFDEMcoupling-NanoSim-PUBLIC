@@ -145,6 +145,9 @@ public:
 
         virtual void explicitCorr(vector&, vector&, scalar&, vector&, const vector&, vector&, const vector&, bool,label index=100) const;
 
+        virtual void explicitCorrScalar(scalar&, scalar&, scalar&, 
+                                        scalar&, const scalar&, scalar&, bool, label index=100) const;
+
         virtual void explicitLimit(vector&, vector&, scalar&) const;
 
     // Access
