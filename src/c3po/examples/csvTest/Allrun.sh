@@ -7,5 +7,5 @@
 #$C3PO_SRC_DIR/interface_CSV/c3po_csv
 #mpirun -np 2 $C3PO_SRC_DIR/interface_CSV/c3po_csv
 $C3PO_SRC_DIR/interface_CSV/c3po_csv
-
+./Allclean.sh
 
