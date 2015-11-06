@@ -87,6 +87,10 @@ forceModel::forceModel
     modelType_(sm.modelType()),
     probeIt_(sm.probeM().active()),
     requiresEx_(false),
+    requiresShape_(false),
+    pullPushRotation_(false),
+    implicitAnisotropicDrag_(false),
+    implicitRotation_(false),
     forceSubModels_(wordList(0)),
     forceSubModel_(new autoPtr<forceSubModel>[nrForceSubModels()])
 {}
@@ -98,6 +102,16 @@ forceModel::~forceModel()
 {}
 
 // * * * * * * * * * * * * * * * * Member Fct  * * * * * * * * * * * * * * * //
+
+void Foam::forceModel::applyDebugSettings(bool debug) const
+{
+    if(!debug)
+    {
+        impParticleForces_.writeOpt() = IOobject::NO_WRITE;
+        expParticleForces_.writeOpt() = IOobject::NO_WRITE;
+    }
+}
+
 /*tmp<volScalarField> forceModel::provideScalarField()
 {
 Info << "now providing a scalar field" << endl;

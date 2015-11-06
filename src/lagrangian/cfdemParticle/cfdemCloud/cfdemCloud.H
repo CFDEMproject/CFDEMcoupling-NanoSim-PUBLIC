@@ -93,6 +93,8 @@ protected:
 
     bool verbose_;
 
+    bool debug_;
+
     bool ignore_;
 
     const word modelType_;
@@ -155,11 +157,13 @@ protected:
 
     mutable bool treatVoidCellsAsExplicitForce_; //will treat the coupling force in cells with no Us data explicitly
 
-    bool useDDTvoidfraction_;
+    mutable word useDDTvoidfraction_;
 
     mutable volScalarField ddtVoidfraction_;
 
-    #if defined(version21) || defined(version16ext)
+    #if defined(version24Dev)
+        const turbulenceModel& turbulence_;
+    #elif defined(version21) || defined(version16ext)
         #ifdef compre
             const compressible::turbulenceModel& turbulence_;
         #else
@@ -235,6 +239,8 @@ public:
 // public Member Functions
 
     // Access
+       bool debugMode(){ return debug_;};
+
        void checkCG(bool);
 
        void setPos(double **&);
@@ -336,6 +342,16 @@ public:
        //access to the particles' orientation information
        virtual inline double ** exArray() const {return NULL;};
        virtual vector ex(int) const {return Foam::vector(0,0,0);};
+       virtual inline double ** shapeArray() const {return NULL;};
+       virtual vector shape(int) const {return Foam::vector(0,0,0);};
+
+       //Optinoal Extra arrays for implicit coupling with anisotropic drag
+       virtual inline double ** CdsExtra() const { return NULL;};       //only TWO extra components of drag coefficient
+       virtual inline double ** CdsRotation() const { return NULL;};    //three extra components of rotational drag
+       virtual inline double ** omegaFluid() const { return NULL;};     //the fluid rotation rate
+
+       virtual inline bool implicitAnisotropicDrag() const {return false;}
+       virtual inline bool implicitRotation()        const {return false;}
 
        //Detector if SRF module is enable or not
        virtual inline bool SRFOn(){return false;}
@@ -378,7 +394,9 @@ public:
 
        inline autoPtr<liggghtsCommandModel>* liggghtsCommand() const;
 
-       #if defined(version21) || defined(version16ext)
+       #if defined(version24Dev)
+            inline const turbulenceModel& turbulence() const;
+       #elif defined(version21) || defined(version16ext)
             #ifdef compre
                 inline const compressible::turbulenceModel& turbulence() const;
             #else
@@ -408,7 +426,7 @@ public:
 
         tmp<volScalarField> ddtVoidfraction() const;
 
-        void calcDdtVoidfraction(volScalarField& voidfraction) const;
+        void calcDdtVoidfraction(volScalarField& voidfraction, volVectorField& Us) const;
 
         //tmp<fvVectorMatrix> ddtVoidfractionU(volVectorField& ,volScalarField&) const;
 

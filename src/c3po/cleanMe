@@ -31,3 +31,10 @@ cd $currDir
 cd applications/pisoFoam_c3po/
 wclean
 cd $currDir
+cd applications/irrotationalFilter/
+wclean
+cd $currDir
+cd applications/CPPPOpisoFoamScalar/
+wclean
+
+

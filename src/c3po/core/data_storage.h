@@ -34,7 +34,7 @@ License
 /*-----------------------------------------------------------------------------------
 Description
      Main class to manage references to lagrangian and eulerian data. It contains
-     vectors of filteredField and Particle objects. 
+     std::vectors of filteredField and Particle objects. 
 -----------------------------------------------------------------------------------*/
 
 
@@ -63,23 +63,8 @@ class DataStorage : public c3poBase, public c3poBaseInterface
       DataStorage(c3po *ptr);
       ~DataStorage();
 
-      void read();
-
-      void write();
-
-      void scatter();
-
-      void parallelize();
-
-      void init();
-
-      void allocateMe() const;
-
-      bool isAllocated() const {return isAllocated_;} ;
-
-      int nbody()     const {return nbody_;} ;
-
-      int nbody_all() const {return nbody_all_;} ;
+      
+      void init() const;
       
       void addfVF(std::string,double*,double*,double*,int sp=1);
       
@@ -173,6 +158,12 @@ class DataStorage : public c3poBase, public c3poBaseInterface
       int MaxNumOfParticles() const { return MaxNofPar_;};
       
       void gatherParticleData() const;
+      
+      void readParticles() const;
+      
+      void removeGhostParticles() const;
+      
+      int getNofParticlesProc(int p) const {return  nParticlesProc_[p];};
 
     private:
 
@@ -187,7 +178,7 @@ class DataStorage : public c3poBase, public c3poBaseInterface
         std::vector<filteredScalarField*>   RMAsF_;
         std::vector<MPI::Win*>              winS_;
         
-        std::vector<Particle*>              particles_;
+        mutable std::vector<Particle*>              particles_;
         
         mutable MPI::Win*                         cellwin_;
         
@@ -207,7 +198,10 @@ class DataStorage : public c3poBase, public c3poBaseInterface
         bool haveParticleDir_;
         
         mutable int MaxNofPar_;
-
+        
+        mutable std::vector<double>        parPos_; //Holds particle positions for manually registered particles;
+        mutable bool                       readParticlesFromJson_;
+        mutable int*                       nParticlesProc_;
  
 };
 

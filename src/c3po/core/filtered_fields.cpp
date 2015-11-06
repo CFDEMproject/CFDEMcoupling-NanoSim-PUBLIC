@@ -81,7 +81,7 @@ filteredVectorField::~filteredVectorField()
   }
 }
 
-filteredScalarField::filteredScalarField(std:: string name, double* value)
+filteredScalarField::filteredScalarField( std::string name, double* value)
 :
  fieldName_(name),
  type(0)

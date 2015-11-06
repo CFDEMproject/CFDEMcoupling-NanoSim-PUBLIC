@@ -84,6 +84,14 @@ namespace C3PO_NS
   double getAlpha_inverted(int selCell);
      
   double (FilteringFavreRunningVariance::*getAlphaValue)(int selCell);
+ 
+  mutable int totFields_; 
+  mutable double** fieldsPerProc_;
+  mutable double** tmpData_;
+  
+  mutable double** VTmp_;
+  mutable double** Var_;
+  mutable int totVar_;
        
  };
 }

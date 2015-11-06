@@ -36,8 +36,15 @@ Description
 
 #include "fvCFD.H"
 #include "singlePhaseTransportModel.H"
-#include "turbulenceModel.H"
 
+#include "OFversion.H"
+#if defined(versionDev)
+    #include "pisoControl.H"
+    #include "turbulentTransportModel.H"
+#else
+    #include "turbulenceModel.H"
+#endif
+#include "fixedFluxPressureFvPatchScalarField.H"
 #include "cfdemCloud.H"
 #include "implicitCouple.H"
 #include "clockModel.H"
@@ -51,6 +58,9 @@ int main(int argc, char *argv[])
     #include "setRootCase.H"
     #include "createTime.H"
     #include "createMesh.H"
+    #if defined(versionDev)
+        pisoControl piso(mesh);
+    #endif
     #include "createFields.H"
     #include "initContinuityErrs.H"
 
@@ -67,7 +77,11 @@ int main(int argc, char *argv[])
 
         Info<< "Time = " << runTime.timeName() << nl << endl;
 
-        #include "readPISOControls.H"
+        #if defined(versionDev)
+            #include "readTimeControls.H"
+        #else
+            #include "readPISOControls.H"
+        #endif
         #include "CourantNo.H"
 
         // do particle stuff
@@ -83,12 +97,8 @@ int main(int argc, char *argv[])
         Ksl = particleCloud.momCoupleM(0).impMomSource();
         Ksl.correctBoundaryConditions();
 
-       //Force Checks
-       vector fTotal(0,0,0);
-       vector fImpTotal = sum(mesh.V()*Ksl.internalField()*(Us.internalField()-U.internalField()));
-       reduce(fImpTotal, sumOp<vector>());
-       Info << "TotalForceExp: " << fTotal << endl;
-       Info << "TotalForceImp: " << fImpTotal << endl;
+        //Force Checks
+        #include "forceCheckIm.H"
 
         #include "solverDebugInfo.H"
         particleCloud.clockM().stop("Coupling");
@@ -111,17 +121,25 @@ int main(int argc, char *argv[])
                 );
 
                 UEqn.relax();
-                if (momentumPredictor && (modelType=="B" || modelType=="Bfull"))
-                    solve(UEqn == - fvc::grad(p) + Ksl/rho*Us);
-                else if (momentumPredictor)
-                    solve(UEqn == - voidfraction*fvc::grad(p) + Ksl/rho*Us);
+                #if defined(versionDev)
+                if (piso.momentumPredictor())
+                #else
+                if (momentumPredictor)
+                #endif
+                {
+                    if (modelType=="B" || modelType=="Bfull")
+                        solve(UEqn == - fvc::grad(p) + Ksl/rho*Us);
+                    else
+                        solve(UEqn == - voidfraction*fvc::grad(p) + Ksl/rho*Us);
+                }
 
                 // --- PISO loop
-
-                //for (int corr=0; corr<nCorr; corr++)
+                #if defined(versionDev)
+                while (piso.correct())
+                #else
                 int nCorrSoph = nCorr + 5 * pow((1-particleCloud.dataExchangeM().timeStepFraction()),1);
-
                 for (int corr=0; corr<nCorrSoph; corr++)
+                #endif
                 {
                     volScalarField rUA = 1.0/UEqn.A();
 
@@ -144,8 +162,36 @@ int main(int argc, char *argv[])
                     if (modelType=="A")
                         rUAvoidfraction = volScalarField("(voidfraction2|A(U))",rUA*voidfraction*voidfraction);
 
+                    // Update the fixedFluxPressure BCs to ensure flux consistency
+                    if (modelType=="A")
+                    {
+                        surfaceScalarField voidfractionf(fvc::interpolate(voidfraction));
+                        setSnGrad<fixedFluxPressureFvPatchScalarField>
+                        (
+                            p.boundaryField(),
+                            (
+                                phi.boundaryField()
+                              - (mesh.Sf().boundaryField() & U.boundaryField())
+                            )/(mesh.magSf().boundaryField()*rUAf.boundaryField()*voidfractionf.boundaryField())
+                        );
+                    }else
+                    {
+                        setSnGrad<fixedFluxPressureFvPatchScalarField>
+                        (
+                            p.boundaryField(),
+                            (
+                                phi.boundaryField()
+                              - (mesh.Sf().boundaryField() & U.boundaryField())
+                            )/(mesh.magSf().boundaryField()*rUAf.boundaryField())
+                        );
+                    }
+
                     // Non-orthogonal pressure corrector loop
+                    #if defined(versionDev)
+                    while (piso.correctNonOrthogonal())
+                    #else
                     for (int nonOrth=0; nonOrth<=nNonOrthCorr; nonOrth++)
+                    #endif
                     {
                         // Pressure corrector
                         fvScalarMatrix pEqn
@@ -154,24 +200,20 @@ int main(int argc, char *argv[])
                         );
                         pEqn.setReference(pRefCell, pRefValue);
 
-                        if
-                        (
-                            corr == nCorr-1
-                         && nonOrth == nNonOrthCorr
-                        )
-                        {
+                        #if defined(versionDev)
+                        pEqn.solve(mesh.solver(p.select(piso.finalInnerIter())));
+                        #else
+                        if( corr == nCorr-1 && nonOrth == nNonOrthCorr )
                             pEqn.solve(mesh.solver("pFinal"));
-                        }
                         else
-                        {
                             pEqn.solve();
-                        }
 
                         if (nonOrth == nNonOrthCorr)
                         {
                             phiGes -= pEqn.flux();
                             phi = phiGes;
                         }
+                        #endif
 
                     } // end non-orthogonal corrector loop
 

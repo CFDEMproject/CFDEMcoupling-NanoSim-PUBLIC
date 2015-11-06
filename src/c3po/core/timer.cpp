@@ -125,6 +125,7 @@ void Timer::dumpStats()
   std::vector<std::string> names;
   names.push_back("TIME_OVERALL");
   names.push_back("TIME_SELECTOR");
+  names.push_back("TIME_SELECTOR_MPI");
   names.push_back("TIME_FILTER_PARALLEL");
   names.push_back("TIME_FILTER_SERIAL");
   names.push_back("TIME_FILTER_TOTAL");
@@ -132,6 +133,7 @@ void Timer::dumpStats()
   names.push_back("TIME_SYNC_IDLE");
   names.push_back("TIME_SAMPLING");
   names.push_back("TIME_BINNING");
+  names.push_back("TIME_INPUT");
   
   std::vector<double*> data;
   for (int i=0; i<TIME_N;i++)
@@ -170,6 +172,8 @@ void Timer::globalReport()
    names.push_back("TIME_OVERALL_VAR");
    names.push_back("TIME_SELECTOR_MEAN");
    names.push_back("TIME_SELECTOR_VAR");
+   names.push_back("TIME_SELECTOR_MPI_MEAN");
+   names.push_back("TIME_SELECTOR_MPI_VAR");
    names.push_back("TIME_FILTER_PARALLEL_MEAN");
    names.push_back("TIME_FILTER_PARALLEL_VAR");
    names.push_back("TIME_FILTER_SERIAL_MEAN");
@@ -184,6 +188,8 @@ void Timer::globalReport()
    names.push_back("TIME_SAMPLING_VAR");
    names.push_back("TIME_BINNING_MEAN");
    names.push_back("TIME_BINNING_VAR");
+   names.push_back("TIME_INPUT_MEAN");
+   names.push_back("TIME_INPUT_VAR");
   
    //calculate mean and variance
    double globalMean_[TIME_N];

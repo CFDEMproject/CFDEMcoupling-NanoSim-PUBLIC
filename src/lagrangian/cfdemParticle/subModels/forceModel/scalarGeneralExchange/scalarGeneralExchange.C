@@ -88,6 +88,7 @@ scalarGeneralExchange::scalarGeneralExchange
     validPartFlux_(false),
     validPartTransCoeff_(false),
     validPartFluid_(false),
+    useLiMason_(false),
     lambda_(readScalar(propsDict_.lookup("lambda"))),
     Cp_(readScalar(propsDict_.lookup("Cp"))),
     speciesFieldNames_( generalPropsDict_.lookup("eulerianFields")), 
@@ -107,9 +108,28 @@ scalarGeneralExchange::scalarGeneralExchange
         Info << "limiting eulerian source field to: " << maxSource_ << endl;
     }
 
-    if(partHeatFluxName_!="na")         validPartFlux_=true;
-    if(partHeatTransCoeffName_!="na")   validPartTransCoeff_=true;  
-    if(partHeatFluidName_!="na")        validPartFluid_=true;
+    if (propsDict_.found("useLiMason"))
+    {
+        useLiMason_=readBool(propsDict_.lookup ("useLiMason"));
+        Info << "setting for useLiMason: " << useLiMason_ << endl;
+    }
+    if(useLiMason_)
+        Nusselt=&scalarGeneralExchange::NusseltLiMason;
+    else
+        Nusselt=&scalarGeneralExchange::NusseltDeenEtAl;
+
+    if(partHeatFluxName_!="na")        
+    {   validPartFlux_=true;
+        Info << "Found a valid partHeatFluxName: " << partHeatFluxName_ << endl;
+    }
+    if(partHeatTransCoeffName_!="na")
+    {   validPartTransCoeff_=true;  
+        Info << "Found a valid partHeatTransCoeffName: " << partHeatTransCoeffName_ << endl;
+    }
+    if(partHeatFluidName_!="na")
+    {   validPartFluid_=true;
+        Info << "Found a valid partHeatFluidName: " << partHeatFluidName_ << endl;
+    }
 
     if( validPartTransCoeff_ && !validPartFluid_ )
         FatalError <<"Transfer coefficient set, but and fluid name missing. Check your entries in the couplingProperties! \n" 
@@ -247,20 +267,15 @@ void scalarGeneralExchange::manipulateScalarField(volScalarField& EuField, int s
     scalar As(0);
     scalar Rep(0);
     scalar Pr(0);
-    scalar Nup(0);
-    scalar n = 3.5; // model parameter
+
     scalar sDth(scaleDia_*scaleDia_*scaleDia_);
 
     interpolationCellPoint<scalar> voidfractionInterpolator_(voidfraction_);
     interpolationCellPoint<vector> UInterpolator_(U_);
     interpolationCellPoint<scalar> fluidScalarFieldInterpolator_(fluidScalarField_);
 
-    scalar h1(0);
-    scalar h2(0);
     for(int index = 0;index < particleCloud_.numberOfParticles(); ++index)
     {
-        //if(particleCloud_.regionM().inRegion()[index][0])
-        //{
             cellI = particleCloud_.cellIDs()[index][0];
             if(cellI >= 0)
             {
@@ -289,21 +304,7 @@ void scalarGeneralExchange::manipulateScalarField(volScalarField& EuField, int s
                 else
                     Pr      = max(SMALL,nuf/transportParameter); //This is Sc for species
 
-                if (Rep < 200)
-                {
-                    Nup = 2+0.6*pow(voidfraction,n)*sqrt(Rep)*pow(Pr,0.33); //This is Sh for species
-                }
-                else if (Rep < 1500)
-                {
-                    h1=pow(voidfraction,n);
-                    h2=pow(Pr,0.33);
-                    Nup = 2+0.5*h1*sqrt(Rep)*h2+0.02*h1*pow(Rep,0.8)*h2;
-                }
-                else
-                {
-                    Nup = 2+0.000045*pow(voidfraction,n)*pow(Rep,1.8);
-                }
-                scalar alpha = transportParameter*Nup/(dscaled);
+                scalar alpha = transportParameter*(this->*Nusselt)(Rep,Pr,voidfraction)/(dscaled);
 
                 // calc convective heat flux [W]
                 scalar tmpPartFlux     = alpha * As * (fluidValue - partDat_[index][0]);
@@ -316,7 +317,7 @@ void scalarGeneralExchange::manipulateScalarField(volScalarField& EuField, int s
                     partDatFluid_[index][0]      = fluidValue;
 
 
-                if(forceSubM(0).verbose() && index >=0 && index <2)
+                if( forceSubM(0).verbose())
                 {
                     Pout << "index    = " <<index << endl;
                     Pout << "partFlux = " << tmpPartFlux << endl;
@@ -327,13 +328,12 @@ void scalarGeneralExchange::manipulateScalarField(volScalarField& EuField, int s
                     Pout << "nuf = " << nuf << endl;
                     Pout << "Rep = " << Rep << endl;
                     Pout << "Pr/Sc = " << Pr << endl;
-                    Pout << "Nup/Shp = " << Nup << endl;
+                    Pout << "Nup/Shp = " << (this->*Nusselt)(Rep,Pr,voidfraction) << endl;
                     Pout << "voidfraction = " << voidfraction << endl;
                     Pout << "partDat_[index][0] = " << partDat_[index][0] << endl  ;
                     Pout << "fluidValue = " << fluidValue << endl  ;
                 }
             }
-        //}
     }
 
     particleCloud_.averagingM().setScalarSum
@@ -389,7 +389,60 @@ void scalarGeneralExchange::manipulateScalarField(volScalarField& EuField, int s
 
 }
 
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+double scalarGeneralExchange::NusseltLiMason(double Rep, double Pr, double voidfraction) const
+{
+    double h1(0);
+    double h2(0);
+    double Nup(0);
+    if (Rep < 200.0)
+    {
+         Nup = 2.0
+             + 0.6
+             * voidfraction*voidfraction*voidfraction*sqrt(voidfraction) //voidfraction^3.5
+             * sqrt(Rep)
+             * pow(Pr,0.33333333333); //This is Sh for species
+    }
+    else if (Rep < 1500.0)
+    {
+          h1  = voidfraction*voidfraction*voidfraction*sqrt(voidfraction); //voidfraction^3.5
+          h2  = pow(Pr,0.3333333333);
+          Nup = 2.0
+              + 0.5 *h1*sqrt(Rep)*h2
+              + 0.02*h1*pow(Rep,0.8)*h2;
+    }
+    else
+    {
+          Nup = 2.0
+              + 0.000045
+              * voidfraction*voidfraction*voidfraction*sqrt(voidfraction) //voidfraction^3.5
+              * pow(Rep,1.8);
+    }
 
+    return Nup;
+}
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+double scalarGeneralExchange::NusseltDeenEtAl(double Rep, double Pr, double voidfraction) const
+{
+    //WARNING: This function is fitted for Reynolds numbers between 0 and 100!!!
+    double Nup(0);
+    double PrPowOneThird  = pow(Pr,0.3333333333) ;
+    Nup = 
+       ( 7.0 - 10.0 * voidfraction + 5 * voidfraction * voidfraction ) 
+     *
+       (1.0 + 
+        0.17 
+       * pow(Rep,0.2) 
+       * PrPowOneThird 
+       )
+     + 
+     ( 1.33 - 2.31 * voidfraction + 1.16 * voidfraction * voidfraction ) 
+     * pow(Rep,0.7)  
+     * PrPowOneThird ;
+
+    return Nup;
+}
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 } // End namespace Foam

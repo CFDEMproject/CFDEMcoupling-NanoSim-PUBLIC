@@ -71,14 +71,19 @@ DiFeliceDrag::DiFeliceDrag
     scaleDia_(1.),
     scaleDrag_(1.)
 {
-    //Append the field names to be probed
-    particleCloud_.probeM().initialize(typeName, "diFeliceDrag.logDat");
-    particleCloud_.probeM().vectorFields_.append("dragForce"); //first entry must the be the force
-    particleCloud_.probeM().vectorFields_.append("Urel");        //other are debug
-    particleCloud_.probeM().scalarFields_.append("Rep");          //other are debug
-    particleCloud_.probeM().scalarFields_.append("Cd");                 //other are debug
-    particleCloud_.probeM().scalarFields_.append("voidfraction");       //other are debug
-    particleCloud_.probeM().writeHeader();
+    // suppress particle probe
+    if (probeIt_ && propsDict_.found("suppressProbe"))
+        probeIt_=!Switch(propsDict_.lookup("suppressProbe"));
+    if(probeIt_)
+    {
+        particleCloud_.probeM().initialize(typeName, "diFeliceDrag.logDat");
+        particleCloud_.probeM().vectorFields_.append("dragForce"); //first entry must the be the force
+        particleCloud_.probeM().vectorFields_.append("Urel");        //other are debug
+        particleCloud_.probeM().scalarFields_.append("Rep");          //other are debug
+        particleCloud_.probeM().scalarFields_.append("Cd");                 //other are debug
+        particleCloud_.probeM().scalarFields_.append("voidfraction");       //other are debug
+        particleCloud_.probeM().writeHeader();
+    }
 
     particleCloud_.checkCG(true);
     if (propsDict_.found("scale"))
@@ -97,7 +102,8 @@ DiFeliceDrag::DiFeliceDrag
     forceSubM(0).setSwitchesList(8,true); // activate scalarViscosity switch
 
     // read those switches defined above, if provided in dict
-    forceSubM(0).readSwitches();
+    for (int iFSub=0;iFSub<nrForceSubModels();iFSub++)
+        forceSubM(iFSub).readSwitches();
 }
 
 
@@ -120,6 +126,10 @@ void DiFeliceDrag::setForce() const
 
     const volScalarField& nufField = forceSubM(0).nuField();
     const volScalarField& rhoField = forceSubM(0).rhoField();
+
+    //update force submodels to prepare for loop
+    for (int iFSub=0;iFSub<nrForceSubModels();iFSub++)
+        forceSubM(iFSub).preParticleLoop(forceSubM(iFSub).verbose());
 
     vector position(0,0,0);
     scalar voidfraction(1);
@@ -196,7 +206,14 @@ void DiFeliceDrag::setForce() const
 
                     drag = dragCoefficient*Ur; //total drag force!
 
-                    forceSubM(0).explicitCorr(drag,dragExplicit,dragCoefficient,Ufluid,U_[cellI],Us,UsField_[cellI],forceSubM(0).verbose(),index);
+                    // explicitCorr
+                    for (int iFSub=0;iFSub<nrForceSubModels();iFSub++)
+                        forceSubM(iFSub).explicitCorr( drag, 
+                                                       dragExplicit,
+                                                       dragCoefficient,
+                                                       Ufluid, U_[cellI], Us, UsField_[cellI],
+                                                       forceSubM(iFSub).verbose()
+                                                     );
                 }
 
                 if(forceSubM(0).verbose() && index >-1 && index <102)

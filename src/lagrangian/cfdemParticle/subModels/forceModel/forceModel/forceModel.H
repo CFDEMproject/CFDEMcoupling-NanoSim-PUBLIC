@@ -76,7 +76,15 @@ protected:
 
         bool probeIt_;
         
-        bool requiresEx_;           //requires a orientation vector
+        bool requiresEx_;           //requires an orientation vector
+
+        bool requiresShape_;        //requires shape information 
+        
+        bool pullPushRotation_;     //will exchange rotation information
+        
+        bool implicitAnisotropicDrag_; //will exchange anisotropic Ksl 
+        
+        bool implicitRotation_;        //will exchange rotational Ksl value
 
         wordList forceSubModels_;
 
@@ -128,6 +136,9 @@ public:
 
 
     // Member Functions
+
+        void applyDebugSettings(bool) const;
+
         virtual void setForce() const = 0;
 
         //tmp<volScalarField> provideScalarField();
@@ -148,14 +159,30 @@ public:
         inline double ** expForces() const { return particleCloud_.expForces_;};
 
         inline double ** DEMForces() const { return particleCloud_.DEMForces_;};
+        
+        inline double ** DEMTorques() const { return particleCloud_.DEMTorques();};
 
         inline double ** Cds() const { return particleCloud_.Cds_;};
+
+        inline double ** CdsExtra() const { return particleCloud_.CdsExtra();};
+
+        inline double ** CdsRotation() const { return particleCloud_.CdsRotation();};
+
+        inline double ** omegaFluid() const { return particleCloud_.omegaFluid();};
 
         inline double ** fluidVel() const { return particleCloud_.fluidVel_;};
 
         inline const bool& coupleForce() const { return coupleForce_;};
 
         virtual inline bool& requiresEx() { return requiresEx_;};
+
+        virtual inline bool& requiresShape() { return requiresShape_;};
+
+        virtual inline bool& pullPushRotation() {return pullPushRotation_;};
+        
+        virtual inline bool& implicitAnisotropicDrag() {return implicitAnisotropicDrag_;};
+        
+        virtual inline bool& implicitRotation() {return implicitRotation_;};
         
         void repartitionImExForces() const; //Repartition Implixit/Explicit forces
 
@@ -165,7 +192,7 @@ public:
 
         inline const forceSubModel& forceSubM(int i) const { return forceSubModel_[i]; };
 
-        inline int nrForceSubModels(){ return forceSubModels_.size(); };
+        inline int nrForceSubModels() const { return forceSubModels_.size(); };
 
         void setForceSubModels(dictionary& dict);
 };

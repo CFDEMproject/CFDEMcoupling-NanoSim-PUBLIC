@@ -27,10 +27,18 @@ Description
     This code is designed to realize coupled CFD-DEM simulations using LIGGGHTS
     and OpenFOAM(R). Note: this code is not part of OpenFOAM(R) (see DISCLAIMER).
 
-    two way general scalar exchange between DEM and CFD
-    convective heat and species transfer model following
+    Two way general scalar exchange between DEM and CFD
+    convective heat and species transfer model. The standard model is that of
+    Deen, N.G. et al., Review of direct numerical simulation of 
+    fluid–particle mass, momentum and heat transfer in dense gas–solid flows.
+    Chemical Engineering Science 116 (2014) 710–724
+    This correlation is based on that of Gunn (1978).
+
+    Alternatively, the correclation of
     Li and Mason (2000), A computational investigation of transient heat
     transfer in  pneumatic transport of granular particles, Pow.Tech 112
+    can be activated. However, this correlation is not suitable for 
+    dense granular flows
 
     WARNING:
     This model REQUIRES the 'generalManual' speciesTransportModel
@@ -40,6 +48,9 @@ Class
 
 SourceFiles
     scalarGeneralExchange.C
+
+Contributing author and copyright holder of this model/file
+    Copyright, 2015     Stefan Radl, TU Graz (radl@tugraz.at)
 
 \*---------------------------------------------------------------------------*/
 
@@ -90,6 +101,8 @@ private:
     bool                validPartTransCoeff_;         //indicator if found, based on heat, but also used for species
     bool                validPartFluid_;              //indicator if found, based on heat, but also used for species
 
+    bool                useLiMason_;                  //switch to activate calculation using Li-Mason
+
     scalar              lambda_;                      // fluid thermal conductivity [W/(m*K)]
     scalar              Cp_;                          // specific heat capacity [ J/(kg*K)]
 
@@ -110,6 +123,11 @@ private:
     mutable scalar      scaleDia_;
 
     void allocateMyArrays() const;
+
+    double NusseltLiMason(double Re, double Pr, double voidfraction) const;
+    double NusseltDeenEtAl(double Re, double Pr, double voidfraction)  const;
+
+    double (scalarGeneralExchange::*Nusselt)(double Re, double Pr, double voidfraction) const;
 
 public:
 

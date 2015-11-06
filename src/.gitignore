@@ -4,6 +4,7 @@
 *.lo
 *.o
 *.obj
+*.d
 
 # Precompiled Headers
 *.gch
@@ -21,7 +22,7 @@
 *.lai
 *.la
 *.a
-*.lib
+#*.lib
 
 # Executables
 *.exe
@@ -86,8 +87,7 @@ doc/Doxygen/DTAGS
 
 # generated files in the main directory (e.g. ReleaseNotes-?.?.html)
 # and in the doc directory
-/*.html
-/doc/*.html
+*.html
 
 # untracked configuration files
 /etc/prefs.csh
@@ -114,5 +114,8 @@ doc/Doxygen/DTAGS
 # ignore eclipse project files in the main directory
 /.cproject
 /.project
+
+# ignore log_* files
+log_*
 
 # end-of-file

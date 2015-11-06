@@ -44,6 +44,8 @@ License
 #include <cmath>
 #include <string>
 
+#include "memory_ns.h"
+
 #include "timer.h"
 
 #define TOLERANCE_ALPHAVAL 1e-10
@@ -63,6 +65,10 @@ alpha_(-1)
 
 FilteringFavreRunningVariance::~FilteringFavreRunningVariance()
 {
+ C3PO_MEMORY_NS::destroy(fieldsPerProc_);
+ C3PO_MEMORY_NS::destroy(tmpData_);
+ C3PO_MEMORY_NS::destroy(VTmp_);
+ C3PO_MEMORY_NS::destroy(Var_);
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -87,6 +93,19 @@ void FilteringFavreRunningVariance::process_input(QJsonObject jsonObj)
   {
    run=&FilteringFavreRunningVariance::runParFavreRunningVariance;
    end=&FilteringFavreRunningVariance::white_end;
+   
+    totFields_=*SF_to_filter + 3*(*VF_to_filter) +1;
+   
+   fieldsPerProc_= C3PO_MEMORY_NS::create(fieldsPerProc_, comm().nprocs(), totFields_);
+   tmpData_=C3PO_MEMORY_NS::create(tmpData_, comm().nprocs(), totFields_);
+ 
+    if(computeVariance_)            
+   {
+    totVar_=*SF_for_varianceCalc_+(*VF_for_varianceCalc_*3);
+    VTmp_= C3PO_MEMORY_NS::create(VTmp_, comm().nprocs(), totVar_);
+    Var_= C3PO_MEMORY_NS::create(Var_, comm().nprocs(), totVar_);
+   
+   } 
   }
   else
   {
@@ -389,7 +408,172 @@ void FilteringFavreRunningVariance::endFavreRunningVariance()
 /*------------------------------------------------------------------------*/
 void FilteringFavreRunningVariance::runParFavreRunningVariance()
 {
-   //TODO: needs to be implemented 
+  
+ timer().stamp();
+  //define some stuff
+  int selPar=selectorContainer().currentParticle();
+  int nprocs_=comm().nprocs();
+  std::vector<int>* cellList=selectorContainer().getCellsInFilter();
+  int* key = selectorContainer().getKey();
+  int totvec= 3*(*VF_to_filter);
+  double localAlpha_;
+  int point=0;
+  
+  if(selPar >=  dataStorage().getNofParticlesProc(comm().me())) selPar=-1;
+  
+  setVectorToZero(&fieldsPerProc_[0][0],totFields_*nprocs_);
+
+  //Calculating partial sum
+  for (int k=0;k<nprocs_;k++)
+  { 
+   
+      
+    for (int s=point;s<key[k]+point;s++) 
+    {
+     
+     localAlpha_= *(mesh().CellVol((*cellList)[s]))*(this->*getAlphaValue)((*cellList)[s]);    
+     for(int i=0;i<*VF_to_filter;i++)
+      for (int coord=0;coord<3;coord++)
+       fieldsPerProc_[k][3*i+coord] += localAlpha_ * dataStorage().VF(RMAVF_[i],coord,(*cellList)[s]);
+      
+    
+     for(int i=0;i<*SF_to_filter;i++)  
+      fieldsPerProc_[k][i+totvec] += localAlpha_ * dataStorage().SF(RMASF_[i],(*cellList)[s]);
+     
+     fieldsPerProc_[k][totFields_-1]+= localAlpha_;
+     
+    }
+    
+
+   point+=key[k];
+
+  }
+  
+  timer().stamp(TIME_FILTER);
+  timer().stamp();
+  
+   MPI_Allreduce(&fieldsPerProc_[0][0],&tmpData_[0][0], totFields_*nprocs_, MPI_DOUBLE, MPI_SUM ,MPI_COMM_WORLD); 
+   
+  timer().stamp(TIME_FILTER_MPI);
+  timer().stamp();
+  
+ if(selPar>-1 && tmpData_[comm().me()][totFields_-1]>TOLERANCE_ALPHAVAL) 
+ {
+ //Finish Calculation
+ 
+  *(dataStorage().getParticle(selPar)->filteredScalar(alpha_)) =tmpData_[comm().me()][totFields_-1]/ (*( selectorContainer().filterVolume(selectorContainer().filterVolumeSize()-1)) );
+ 
+   for(int i=0;i<*VF_to_filter;i++)
+      for (int coord=0;coord<3;coord++)
+        dataStorage().getParticle(selPar)->filteredVector(filterVF_[i])[coord] = tmpData_[comm().me()][3*i+coord]/tmpData_[comm().me()][totFields_-1];
+        
+  
+   for(int i=0;i<*SF_to_filter;i++)  
+    *(dataStorage().getParticle(selPar)->filteredScalar(filterSF_[i])) =  tmpData_[comm().me()][i+totvec]/tmpData_[comm().me()][totFields_-1]; 
+  }  
+       
+ timer().stamp(TIME_FILTER);
+    
+  
+
+    
+ 
+  if(computeVariance_)            
+  { 
+    point=0;
+    
+    setVectorToZero(&VTmp_[0][0],totVar_*nprocs_);
+    int varVecs=(*VF_for_varianceCalc_*3);
+    for (int k=0;k<nprocs_;k++)
+    {
+     if(tmpData_[k][totFields_-1]>TOLERANCE_ALPHAVAL)
+     {
+      for (int s=point;s<key[k]+point;s++) 
+      {
+       localAlpha_= *(mesh().CellVol((*cellList)[s]))*(this->*getAlphaValue)((*cellList)[s]);
+       //Loop SCALAR fields and do variance calculation
+        for(int kVar=0;kVar<*SF_for_varianceCalc_;kVar++)
+        {
+     
+         if(varianceHasCrossTerm_)
+          VTmp_[k][kVar+varVecs] += localAlpha_                              
+                          *( dataStorage().SF(filterSFVarianceValueID_[kVar],(*cellList)[s]) - tmpData_[k][filterSFVarianceValueID_[kVar]+totvec]/tmpData_[k][totFields_-1])
+                          *( dataStorage().SF(filterSFVarianceValueSecondID_[kVar],(*cellList)[s]) -  tmpData_[k][filterSFVarianceValueSecondID_[kVar]+totvec]/tmpData_[k][totFields_-1]);
+         else
+          VTmp_[k][kVar+varVecs] += localAlpha_                             
+                          *( dataStorage().SF(filterSFVarianceValueID_[kVar],(*cellList)[s]) - tmpData_[k][filterSFVarianceValueID_[kVar]+totvec]/tmpData_[k][totFields_-1])
+                          *( dataStorage().SF(filterSFVarianceValueID_[kVar],(*cellList)[s]) - tmpData_[k][filterSFVarianceValueID_[kVar]+totvec]/tmpData_[k][totFields_-1]);
+        }
+
+        //Loop VECTOR fields and do variance calculation
+        for(int kVar=0;kVar<*VF_for_varianceCalc_;kVar++)
+        {
+         int firstCoord[3]  = {0,1,2};
+         int secondCoord[3] = {0,1,2};
+         if(filterVFVarianceComputeOffDiagonal_[kVar])
+         {
+          firstCoord [1]=0;firstCoord [2]=1;
+          secondCoord[0]=1;secondCoord[1]=2;
+         }
+  
+         for (int coord=0;coord<3;coord++)
+         {
+
+          if(evaluateVarianceVectorScalarMixed_[kVar])
+             VTmp_[k][3*kVar+coord] += localAlpha_                              
+                                      *( dataStorage().VF(filterVFVarianceValueID_[kVar],coord,(*cellList)[s]) - tmpData_[k][3*filterVFVarianceValueID_[kVar]+coord]/tmpData_[k][totFields_-1])
+                                     *( dataStorage().VF(filterVFVarianceValueSecondID_[kVar],coord,(*cellList)[s]) - tmpData_[k][3*filterVFVarianceValueSecondID_[kVar]+coord]/tmpData_[k][totFields_-1]);
+          else if(varianceHasCrossTerm_ || filterVFVarianceComputeOffDiagonal_[kVar] )
+             VTmp_[k][3*kVar+coord] += localAlpha_                              
+                                      *( dataStorage().VF(filterVFVarianceValueID_[kVar],firstCoord[coord],(*cellList)[s])  -  tmpData_[k][3*filterVFVarianceValueID_[kVar]+coord]/tmpData_[k][totFields_-1])
+                                      *( dataStorage().VF(filterVFVarianceValueSecondID_[kVar],secondCoord[coord],(*cellList)[s]) -  tmpData_[k][3*filterVFVarianceValueID_[kVar]+coord]/tmpData_[k][totFields_-1]);
+          else
+             VTmp_[k][3*kVar+coord] += localAlpha_                              
+                                      *( dataStorage().VF(filterVFVarianceValueID_[kVar],coord,(*cellList)[s]) -  tmpData_[k][3*filterVFVarianceValueID_[kVar]+coord]/tmpData_[k][totFields_-1])
+                                      *( dataStorage().VF(filterVFVarianceValueID_[kVar],coord,(*cellList)[s]) -  tmpData_[k][3*filterVFVarianceValueID_[kVar]+coord]/tmpData_[k][totFields_-1]);
+
+
+
+         }
+        }
+      }
+     }
+    }
+  
+  timer().stamp(TIME_FILTER);
+  timer().stamp();
+  
+   MPI_Allreduce(&VTmp_[0][0],&Var_[0][0], totVar_*nprocs_, MPI_DOUBLE, MPI_SUM ,MPI_COMM_WORLD); 
+   
+  timer().stamp(TIME_FILTER_MPI);
+  timer().stamp();
+  if(selPar==-1) return;
+  if(tmpData_[comm().me()][totFields_-1]<TOLERANCE_ALPHAVAL) return;
+  
+  double finalAlpha_=tmpData_[comm().me()][totFields_-1];
+ 
+   for(int kVar=0;kVar<*VF_for_varianceCalc_;kVar++)
+   { 
+      int i = *VF_to_filter + kVar;
+      for(int coord=0;coord<3;coord++)
+      {
+        dataStorage().getParticle(selPar)->filteredVector(filterVF_[i])[coord] =  Var_[comm().me()][kVar+coord] /finalAlpha_;     
+      }
+   }
+   
+  /* for(int kVar=0;kVar<*SF_for_varianceCalc_;kVar++)
+   { 
+      int i = *SF_to_filter + kVar;
+       *(dataStorage().getParticle(selPar)->filteredScalar(filterSF_[i])) =  Var_[comm().me()][(*VF_for_varianceCalc_*3)+kVar] /  finalAlpha_; 
+   }
+  */
+
+  
+  }
+ 
+   
+ 
+    timer().stamp(TIME_FILTER);
 }
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 double FilteringFavreRunningVariance::getAlpha(int selCell)

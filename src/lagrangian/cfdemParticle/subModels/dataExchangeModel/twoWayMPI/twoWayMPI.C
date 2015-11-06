@@ -119,8 +119,7 @@ twoWayMPI::~twoWayMPI()
 // * * * * * * * * * * * * * * * private Member Functions  * * * * * * * * * * * * * //
 char* twoWayMPI::wordToChar(word& inWord) const
 {
-    string HH = string(inWord);
-    return const_cast<char*>(HH.c_str());
+    return const_cast<char*>(inWord.c_str());
 }
 
 

@@ -86,8 +86,7 @@ doc/Doxygen/DTAGS
 
 # generated files in the main directory (e.g. ReleaseNotes-?.?.html)
 # and in the doc directory
-/*.html
-/doc/*.html
+*.html
 
 # untracked configuration files
 /etc/prefs.csh

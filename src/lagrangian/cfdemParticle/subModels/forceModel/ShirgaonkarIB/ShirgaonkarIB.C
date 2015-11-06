@@ -76,6 +76,7 @@ ShirgaonkarIB::ShirgaonkarIB
     particleCloud_.probeM().vectorFields_.append("dragForce"); //first entry must the be the force
     particleCloud_.probeM().writeHeader();
 
+
     if (propsDict_.found("verbose")) verbose_=true;
     if (propsDict_.found("twoDimensional"))
     {

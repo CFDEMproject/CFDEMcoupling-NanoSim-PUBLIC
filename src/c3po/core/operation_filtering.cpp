@@ -310,7 +310,7 @@ void OperationFiltering::registerFieldsVariance(QJsonObject jsonObj) const
   if(varianceHasCrossTerm_ && filterSFVarianceNameVectorScalarMixed_.size()>0)
     error().throw_error_all("operation_filtering.cpp",-1, "You cannot specify 'VectorfieldsForVarianceName2' and 'ScalarfieldsForVectorScalarMixedVariance'. Please use separate filtering operations in case you want to compute vector-vector cross terms and vector-scalar mixed terms.");
 
-  for(uint iVar = 0; iVar<filterSFVarianceNameVectorScalarMixed_.size(); iVar++)
+  for(unsigned int iVar = 0; iVar<filterSFVarianceNameVectorScalarMixed_.size(); iVar++)
   {
     int tmpScalInt = searchScalarFiltName(filterSFVarianceNameVectorScalarMixed_[iVar]);
     filterSFVarianceValueVectorScalarMixed_.push_back(tmpScalInt);
@@ -395,7 +395,6 @@ void OperationFiltering::begin_of_step()
     int filtFieldID = dataStorage().VFid(name);
     if (filtFieldID==-1)
     {
-        std::cout << "ERROR: when searching for filtered field " << name << "\n" ;
         error().throw_error_all("OperationFiltering::begin_of_step()",
                                 -1,
                                 "ERROR: Could not find filtered VECTOR field for variance calculation. Check you have the above filtered field registerd!");

@@ -73,6 +73,8 @@ protected:
 
         mutable volScalarField nu_;
 
+        //mutable volScalarField mu_;
+
         mutable volVectorField divTau_;
 
         mutable volVectorField IBDragPerV_;
@@ -132,9 +134,21 @@ public:
     // Member Functions
         void partToArray(label&, vector&, const vector&, const vector& Ufluid=vector::zero, scalar Cd=scalar(0)) const;
 
+        //function to set anisotropic drag components for DEM side only.
+        void partToArrayAnisotropic(label&, vector&, const vector& dragEx=vector::zero) const;
+
+        //function to set anisotropic torque components for DEM side only. 
+        void partToArrayAnisotropicTorque(label&, vector&, const vector& torqueTotal=vector::zero) const;
+
+
+        virtual void preParticleLoop(bool verbose=false) const {};
+
         virtual void explicitCorr(vector&, vector&, scalar&, vector&, const vector&, vector&, const vector&, bool,label index=100) const;
 
+        virtual void explicitLimit(vector&, vector&, scalar&) const;
+
     // Access
+        inline bool implForceDEM() const { return switches_[2]; };
 
         inline bool verbose() const      { return switches_[3]; };
 

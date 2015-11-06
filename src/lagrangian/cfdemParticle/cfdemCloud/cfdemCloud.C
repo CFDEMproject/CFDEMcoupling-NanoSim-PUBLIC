@@ -76,6 +76,7 @@ Foam::cfdemCloud::cfdemCloud
     ),
     solveFlow_(true),
     verbose_(false),
+    debug_(false),
     ignore_(false),
     modelType_(couplingProperties_.lookup("modelType")),
     positions_(NULL),
@@ -106,7 +107,7 @@ Foam::cfdemCloud::cfdemCloud
     impDEMdragAcc_(false),
     imExSplitFactor_(1.0),
     treatVoidCellsAsExplicitForce_(false),
-    useDDTvoidfraction_(false),
+    useDDTvoidfraction_("off"),
     ddtVoidfraction_
     (   
         IOobject
@@ -122,7 +123,9 @@ Foam::cfdemCloud::cfdemCloud
     ),
     turbulence_
     (
-        #if defined(version21) || defined(version16ext)
+        #if defined(version24Dev)
+            mesh.lookupObject<turbulenceModel>
+        #elif defined(version21) || defined(version16ext)
             #ifdef compre
                 mesh.lookupObject<compressible::turbulenceModel>
             #else
@@ -222,6 +225,21 @@ Foam::cfdemCloud::cfdemCloud
     global buildInfo(couplingProperties_,*this);
     buildInfo.info();
 
+    //-- apply debug Mode to sub models
+
+    // set debug flag according to env
+    debug_ = buildInfo.debugMode();
+
+    // overwrite debug flag if found in dict
+    if (couplingProperties_.found("debug"))
+        debug_=Switch(couplingProperties_.lookup("debug"));
+
+    // apply flag
+    if(!debugMode()) ddtVoidfraction_.writeOpt() = IOobject::NO_WRITE;
+    voidFractionM().applyDebugSettings(debugMode());
+    averagingM().applyDebugSettings(debugMode());
+    //--
+
     Info << "If BC are important, please provide volScalarFields -imp/expParticleForces-" << endl;
     if (couplingProperties_.found("solveFlow"))
         solveFlow_=Switch(couplingProperties_.lookup("solveFlow"));
@@ -235,7 +253,19 @@ Foam::cfdemCloud::cfdemCloud
         Info << "WARNING - LES functionality not yet tested!" << endl;
 
     if (couplingProperties_.found("useDDTvoidfraction"))
-        useDDTvoidfraction_=true;
+    {
+        useDDTvoidfraction_=word(couplingProperties_.lookup("useDDTvoidfraction"));
+
+        if(useDDTvoidfraction_==word("a") || 
+           useDDTvoidfraction_==word("b") ||
+           useDDTvoidfraction_==word("off")
+          )
+            Info << "choice for ddt(voidfraction) = " << useDDTvoidfraction_ << endl;
+        else
+            FatalError << "Model " << useDDTvoidfraction_ 
+                       << " is not a valid choice for ddt(voidfraction). Choose a or b or off."
+                       << abort(FatalError);
+    }
     else        
         Info << "ignoring ddt(voidfraction)" << endl;
 
@@ -248,6 +278,7 @@ Foam::cfdemCloud::cfdemCloud
             *this,
             forceModels_[i]
         );
+        forceModel_[i]().applyDebugSettings(debugMode());
     }
 
     momCoupleModel_ = new autoPtr<momCoupleModel>[momCoupleModels_.size()];
@@ -259,6 +290,7 @@ Foam::cfdemCloud::cfdemCloud
             *this,
             momCoupleModels_[i]
         );
+        momCoupleModel_[i]().applyDebugSettings(debugMode());
     }
 
     // run liggghts commands from cfdem
@@ -301,12 +333,15 @@ Foam::cfdemCloud::~cfdemCloud()
 // * * * * * * * * * * * * * * * private Member Functions  * * * * * * * * * * * * * //
 void Foam::cfdemCloud::getDEMdata()
 {
+    if(verbose_) Info << "Foam::cfdemCloud::getDEMdata()" << endl;
     dataExchangeM().getData("radius","scalar-atom",radii_);
     dataExchangeM().getData("x","vector-atom",positions_);
     dataExchangeM().getData("v","vector-atom",velocities_);
 
     if(impDEMdragAcc_)
         dataExchangeM().getData("dragAcc","vector-atom",fAcc_); // array is used twice - might be necessary to clean it first
+
+    if(verbose_) Info << "Foam::cfdemCloud::getDEMdata() - done." << endl;
 }
 
 void Foam::cfdemCloud::giveDEMdata()
@@ -582,7 +617,7 @@ bool Foam::cfdemCloud::evolve
         alpha.correctBoundaryConditions();
 
         // calc ddt(voidfraction)
-        calcDdtVoidfraction(alpha);
+        calcDdtVoidfraction(alpha,Us);
 
         // update mean particle velocity Field
         Us = averagingM().UsInterp();
@@ -689,7 +724,7 @@ tmp<fvVectorMatrix> cfdemCloud::divVoidfractionTau(volVectorField& U,volScalarFi
 
 tmp<volScalarField> cfdemCloud::ddtVoidfraction() const
 {
-    if (!useDDTvoidfraction_)
+    if (useDDTvoidfraction_==word("off"))
     {
         Info << "suppressing ddt(voidfraction)" << endl;
         return tmp<volScalarField> (ddtVoidfraction_ * 0.);
@@ -697,14 +732,16 @@ tmp<volScalarField> cfdemCloud::ddtVoidfraction() const
     return tmp<volScalarField> (ddtVoidfraction_ * 1.) ;
 }
 
-void cfdemCloud::calcDdtVoidfraction(volScalarField& voidfraction) const
+void cfdemCloud::calcDdtVoidfraction(volScalarField& voidfraction, volVectorField& Us) const
 {
-    // version if ddt is calculated only at coupling time
-    //Info << "calculating ddt(voidfraction) based on couplingTime" << endl;
-    //scalar scale=mesh().time().deltaT().value()/dataExchangeM().couplingTime();
-    //ddtVoidfraction_ = fvc::ddt(voidfraction) * scale;
-
-    ddtVoidfraction_ = fvc::ddt(voidfraction);
+    if (useDDTvoidfraction_==word("a"))
+    {
+        // Calculation of new ddtVoidfraction by using divergence of particle fluxes instead
+        ddtVoidfraction_=fvc::div(Us*(1.-voidfraction));
+    }else // "b" or "off"
+    {
+        ddtVoidfraction_ = fvc::ddt(voidfraction);
+    }
 }
 
 /*tmp<fvVectorMatrix> cfdemCloud::ddtVoidfractionU(volVectorField& U,volScalarField& voidfraction) const

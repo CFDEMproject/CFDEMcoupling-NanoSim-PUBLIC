@@ -159,8 +159,12 @@ class SelectorContainer : public c3poBase, public c3poBaseInterface
 	void checkIJK(bool struct_)   const;  
 	
 	void setCurrentParticle(int id_)  const {currentParticleId_=id_;} ;
+	void isParticle()                 const {particleBased_=true;};
+	void isCell()                     const {particleBased_=false;};
 	
 	int  currentParticle()          {return currentParticleId_;};   
+	
+	bool particleBased()            {return particleBased_;};
 	                   
 /*-----------------------------------------------------------------------------------------------------*/      
     void SCreport()
@@ -204,6 +208,7 @@ class SelectorContainer : public c3poBase, public c3poBaseInterface
       mutable bool ijk;
       
       mutable int currentParticleId_;
+      mutable bool particleBased_;
 
 };
 

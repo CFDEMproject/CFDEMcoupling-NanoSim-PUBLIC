@@ -30,13 +30,17 @@ scalarTransportModel generalManual;
 
 generalManualProps
 {
-    ScT 0.7; //optional
-    PrT 0.7; //optional
+    //ScT 0.7; //optional
+    //PrT 0.7; //optional
 
     eulerianFields
     (
         C   //any concentration fields MUST be first to have correct numbering
         T
     );
+
+    fvOptionsC {};
+    fvOptionsT {};
 };
+
 // ************************************************************************* //

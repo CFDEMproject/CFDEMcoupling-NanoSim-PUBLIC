@@ -1,3 +1,7 @@
+echo            both
+log             ../DEM/log.liggghts
+thermo_log      ../DEM/post/thermo.txt
+
 #######################################################
 # variables                                           #
 #######################################################
@@ -5,14 +9,10 @@ variable r0 equal 0.011
 #######################################################
 
 # read packed bed and calc convective heat transfer
-log             ../DEM/log.liggghts
-thermo_log      ../DEM/post/thermo.txt
-
 atom_style      granular
 atom_modify     map array
 boundary        m m m
 newton          off
-echo            both
 
 communicate     single vel yes
 
@@ -38,7 +38,7 @@ pair_style  gran model hertz tangential history
 pair_coeff  * *
 
 # timestep, gravity
-timestep    1e-5
+timestep    0.00001
 fix         gravi all gravity 9.81 vector 0. 0. -1.
 
 # walls

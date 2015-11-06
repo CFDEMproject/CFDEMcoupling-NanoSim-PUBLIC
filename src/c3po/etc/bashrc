@@ -53,18 +53,9 @@ alias c3poClean='bash $C3PO_SRC_DIR/cleanMe'
 #- shortcut to compile C3PO
 alias c3poComp='bash $C3PO_SRC_DIR/compileMe'
 
-#use different CFDEM_ADD_LIBS_DIR for c3po
-export CFDEM_ADD_LIBS_DIR=$CFDEM_ADD_LIBS_DIR/c3po
-echo "using CFDEM_ADD_LIBS_DIR=$CFDEM_ADD_LIBS_DIR defined by user."
-
-#check if hdf5 support is used
-if [[ $USEHDF5 == "true" ]]; then
-    export CFDEM_ADD_LIBS_DIR=$CFDEM_ADD_LIBS_DIR/hdf5
-    echo "using CFDEM_ADD_LIBS_DIR=$CFDEM_ADD_LIBS_DIR defined by user."
-fi
-
-#check if ParScale support is used
-if [[ $PASCAL_SRC_DIR != "" ]]; then
-    export CFDEM_ADD_LIBS_DIR=$CFDEM_ADD_LIBS_DIR/parScale
-    echo "using CFDEM_ADD_LIBS_DIR=$CFDEM_ADD_LIBS_DIR defined by user."
+#Additional libs required for Compilation of CPPPO
+if [[ $C3PO_ADD_LIBS_DIR == "" ]]; then
+    export C3PO_ADD_LIBS_DIR=$CFDEM_SRC_DIR/lagrangian/cfdemParticle/etc
+else
+    echo "using C3PO_ADD_LIBS_DIR=$C3PO_ADD_LIBS_DIR defined by user."
 fi

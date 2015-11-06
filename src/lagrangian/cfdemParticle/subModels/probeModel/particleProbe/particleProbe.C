@@ -110,13 +110,16 @@ particleProbe::~particleProbe()
 
 void particleProbe::setOutputFile() const
 {
-    //set the current item ID
-    if(currItemId_== itemCounter_)
-        currItemId_=1;
-    else
-        currItemId_+=1;
-    sPtr = sPtrList_[currItemId_-1]; //set the pointer to the output file from list
-    probeIndex_=currItemId_-1;
+    if(itemCounter_>0)
+    {
+        //set the current item ID
+        if(currItemId_== itemCounter_)
+            currItemId_=1;
+        else
+            currItemId_+=1;
+        sPtr = sPtrList_[currItemId_-1]; //set the pointer to the output file from list
+        probeIndex_=currItemId_-1;
+    }
 }
 
 

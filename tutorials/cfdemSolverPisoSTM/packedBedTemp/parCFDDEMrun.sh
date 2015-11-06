@@ -16,7 +16,7 @@ source $CFDEM_SRC_DIR/lagrangian/cfdemParticle/etc/functions.sh
 #- define variables
 casePath="$(dirname "$(readlink -f ${BASH_SOURCE[0]})")"
 logpath=$casePath
-headerText="run_parallel_cfdemSolverPisoScalarNew_packedBedTemp_CFDDEM"
+headerText="run_parallel_cfdemSolverPisoSTM_packedBedTemp_CFDDEM"
 logfileName="log_$headerText"
 solverName="cfdemSolverPisoSTM"
 nrProcs="2"

@@ -113,11 +113,17 @@ gradPForce::gradPForce
 
     particleCloud_.checkCG(true);
 
-    particleCloud_.probeM().initialize(typeName, "gradP.logDat");
-    particleCloud_.probeM().vectorFields_.append("gradPForce"); //first entry must the be the force
-    particleCloud_.probeM().scalarFields_.append("Vs");
-    particleCloud_.probeM().scalarFields_.append("rho");
-    particleCloud_.probeM().writeHeader();
+    // suppress particle probe
+    if (probeIt_ && propsDict_.found("suppressProbe"))
+        probeIt_=!Switch(propsDict_.lookup("suppressProbe"));
+    if(probeIt_)
+    {
+        particleCloud_.probeM().initialize(typeName, "gradP.logDat");
+        particleCloud_.probeM().vectorFields_.append("gradPForce"); //first entry must the be the force
+        particleCloud_.probeM().scalarFields_.append("Vs");
+        particleCloud_.probeM().scalarFields_.append("rho");
+        particleCloud_.probeM().writeHeader();
+    }
 }
 
 
@@ -204,8 +210,6 @@ void gradPForce::setForce() const
         //}
     }
 }
-
-
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 } // End namespace Foam

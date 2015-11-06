@@ -7,10 +7,14 @@ clc;
 %====================================%
 rhoG = 10			% density in kg/m3
 path = '../postProcessing/probes/0/p';
-columns=22;
-headerlines=4;
-data = loaddata(path,columns,headerlines);
-data=transpose(data);
+
+%- nomenclature before 2.4.x
+%columns=22;
+%headerlines=4;
+%data = loaddata(path,columns,headerlines);
+%data=transpose(data);
+
+data = load(path);
 [x,y]=size(data)
 dp_sim = (data(:,2)-data(:,y))*rhoG; %conversion to Pa!
 t_sim = data(:,1);
@@ -95,5 +99,5 @@ ylabel("pressure drop [Pa]")
 axis([0,Uend,0,dpErgun(length(dpErgun))])
 
 %print('cfdemSolverPiso_settlingTest.eps','-deps2')
-print -color "cfdemSolverPiso_ErgunTestMPI.eps"
+print -color "cfdemSolverPiso_ErgunTestMPI.png"
 

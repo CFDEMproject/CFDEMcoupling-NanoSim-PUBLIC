@@ -114,6 +114,8 @@ public:
 
 
     // Member Function
+        void applyDebugSettings(bool) const;
+
         virtual void setScalarAverage
         (
             volScalarField& field,

@@ -71,6 +71,7 @@ class SelectorCellUnstruct : public SelectorBase
     private:
     
     int currentCell_;
+    int currentPar_;
     double tolerance_;
     
     double* cellList_;
@@ -78,7 +79,7 @@ class SelectorCellUnstruct : public SelectorBase
     double* max_;
     double* min_;
     bool periodic_[3];
-    
+
     bool (SelectorCellUnstruct::*checkX)(double,double,double);
     bool (SelectorCellUnstruct::*checkY)(double,double,double);
     bool (SelectorCellUnstruct::*checkZ)(double,double,double);

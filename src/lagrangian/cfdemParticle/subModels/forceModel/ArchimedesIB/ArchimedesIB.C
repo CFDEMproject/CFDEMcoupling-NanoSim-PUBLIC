@@ -75,7 +75,7 @@ ArchimedesIB::ArchimedesIB
     //Append the field names to be probed
     particleCloud_.probeM().initialize(typeName, "archimedesIBF.logDat");
     particleCloud_.probeM().vectorFields_.append("archimedesIBForce");  //first entry must the be the force
-    particleCloud_.probeM().writeHeader();  
+    particleCloud_.probeM().writeHeader();
 
     if (propsDict_.found("twoDimensional"))
     {

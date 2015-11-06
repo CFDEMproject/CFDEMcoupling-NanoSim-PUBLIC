@@ -95,7 +95,10 @@ bool Foam::cfdemCloudIB::reAllocArrays() const
     return true;
 }
 
-bool Foam::cfdemCloudIB::evolve()
+bool Foam::cfdemCloudIB::evolve
+(
+    volScalarField& alpha
+)
 {
     numberOfParticlesChanged_ = false;
     arraysReallocated_=false;
@@ -111,21 +114,25 @@ bool Foam::cfdemCloudIB::evolve()
 //             << " haveEvolvedOnce_: " << haveEvolvedOnce_ << endl;
         if(!skipLagrangeToEulerMapping_ || !haveEvolvedOnce_)
         {
-          if(verbose_) Info << "- getDEMdata()" << endl;
-          getDEMdata();
-          Info << "nr particles = " << numberOfParticles() << endl;
-        
-          // search cellID of particles
-          if(verbose_) Info << "- findCell()" << endl;
-          locateM().findCell(NULL,positions_,cellIDs_,numberOfParticles());
-          if(verbose_) Info << "findCell done." << endl;
+            if(verbose_) Info << "- getDEMdata()" << endl;
+            getDEMdata();
+            Info << "nr particles = " << numberOfParticles() << endl;
 
-          // set void fraction field
-          if(verbose_) Info << "- setvoidFraction()" << endl;
-          voidFractionM().setvoidFraction(NULL,voidfractions_,particleWeights_,particleVolumes_,particleV_);
-          if(verbose_) Info << "setvoidFraction done." << endl;
+            // search cellID of particles
+            if(verbose_) Info << "- findCell()" << endl;
+            locateM().findCell(NULL,positions_,cellIDs_,numberOfParticles());
+            if(verbose_) Info << "findCell done." << endl;
+
+            // set void fraction field
+            if(verbose_) Info << "- setvoidFraction()" << endl;
+            voidFractionM().setvoidFraction(NULL,voidfractions_,particleWeights_,particleVolumes_,particleV_);
+            if(verbose_) Info << "setvoidFraction done." << endl;
         }
-        
+
+        // update voidFractionField
+        alpha.internalField() = voidFractionM().voidFractionNext().internalField(); // there might be a better approach, see cfdemCloud.C
+        alpha.correctBoundaryConditions();
+
         // set particles forces
         if(verbose_) Info << "- setForce(forces_)" << endl;
         for(int index = 0;index <  numberOfParticles_; ++index){
@@ -164,46 +171,17 @@ void Foam::cfdemCloudIB::calcVelocityCorrection
     volScalarField& voidfraction
 )
 {
-    label cellI=0;
-    vector uParticle(0,0,0);
-    vector rVec(0,0,0);
-    vector velRot(0,0,0);
-    vector angVel(0,0,0);
-
-    for(int index=0; index< numberOfParticles(); index++)
-    {
-        //if(regionM().inRegion()[index][0])
-        //{
-            for(int subCell=0;subCell<cellsPerParticle()[index][0];subCell++)
-            {
-                //Info << "subCell=" << subCell << endl;
-                cellI = cellIDs()[index][subCell];
-
-                if (cellI >= 0)
-                {
-                    // calc particle velocity
-                    for(int i=0;i<3;i++) rVec[i]=U.mesh().C()[cellI][i]-position(index)[i];
-                    for(int i=0;i<3;i++) angVel[i]=angularVelocities()[index][i];
-                    velRot=angVel^rVec;
-                    for(int i=0;i<3;i++) uParticle[i] = velocities()[index][i]+velRot[i];
-
-                    // impose field velocity
-                    U[cellI]=(1-voidfractions_[index][subCell])*uParticle+voidfractions_[index][subCell]*U[cellI];
-                }
-            }
-        //}
-    }
-    U.correctBoundaryConditions();
+    setParticleVelocity(U);
 
     // make field divergence free - set reference value in case it is needed
     fvScalarMatrix phiIBEqn
     (
         fvm::laplacian(phiIB) == fvc::div(U) + fvc::ddt(voidfraction)
     );
-     if(phiIB.needReference()) 
-     {
+    if(phiIB.needReference()) 
+    {
          phiIBEqn.setReference(pRefCell_, pRefValue_);
-     }
+    }
     
     phiIBEqn.solve();
 
@@ -214,12 +192,45 @@ void Foam::cfdemCloudIB::calcVelocityCorrection
     p=p+phiIB/U.mesh().time().deltaT();  // do we have to  account for rho here?
     p.correctBoundaryConditions();
 
-     if (couplingProperties_.found("checkinterface"))
-       {
+    if (couplingProperties_.found("checkinterface"))
+    {
           Info << "checking no-slip on interface..." << endl;
 //          #include "checkInterfaceVelocity.H" //TODO: check carefully!
-       }
+    }
+}
 
+void Foam::cfdemCloudIB::setParticleVelocity
+(
+    volVectorField& U
+)
+{
+    label cellI=0;
+    vector uParticle(0,0,0);
+    vector rVec(0,0,0);
+    vector velRot(0,0,0);
+    vector angVel(0,0,0);
+
+    for(int index=0; index< numberOfParticles(); index++)
+    {
+        for(int subCell=0;subCell<cellsPerParticle()[index][0];subCell++)
+        {
+            //Info << "subCell=" << subCell << endl;
+            cellI = cellIDs()[index][subCell];
+
+            if (cellI >= 0)
+            {
+                // calc particle velocity
+                for(int i=0;i<3;i++) rVec[i]=U.mesh().C()[cellI][i]-position(index)[i];
+                for(int i=0;i<3;i++) angVel[i]=angularVelocities()[index][i];
+                velRot=angVel^rVec;
+                for(int i=0;i<3;i++) uParticle[i] = velocities()[index][i]+velRot[i];
+
+                // impose field velocity
+                U[cellI]=(1-voidfractions_[index][subCell])*uParticle+voidfractions_[index][subCell]*U[cellI];
+            }
+        }
+    }
+    U.correctBoundaryConditions();
 }
 
 vector Foam::cfdemCloudIB::angularVelocity(int index)

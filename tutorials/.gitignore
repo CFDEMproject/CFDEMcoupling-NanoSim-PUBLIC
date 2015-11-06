@@ -86,8 +86,7 @@ doc/Doxygen/DTAGS
 
 # generated files in the main directory (e.g. ReleaseNotes-?.?.html)
 # and in the doc directory
-/*.html
-/doc/*.html
+*.html
 
 # untracked configuration files
 /etc/prefs.csh
@@ -114,5 +113,9 @@ doc/Doxygen/DTAGS
 # ignore eclipse project files in the main directory
 /.cproject
 /.project
+
+# ignore log files
+log_*
+log.*
 
 # end-of-file

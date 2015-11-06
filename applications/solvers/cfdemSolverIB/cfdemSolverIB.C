@@ -96,7 +96,7 @@ int main(int argc, char *argv[])
 
         // do particle stuff
         Info << "- evolve()" << endl;
-        particleCloud.evolve();
+        particleCloud.evolve(voidfraction);
 
         // Pressure-velocity PISO corrector
         {
@@ -104,7 +104,7 @@ int main(int argc, char *argv[])
 
             fvVectorMatrix UEqn
             (
-                fvm::ddt(voidfraction,U)
+                fvm::ddt(U) //fvm::ddt(voidfraction,U)
               + fvm::div(phi, U)
               + turbulence->divDevReff(U)
                 #if defined(version22)

@@ -41,6 +41,11 @@ solvers
         relTol          0;
     }
 
+    UFinal
+    {
+        $U
+    }
+
     k
     {
         solver          PBiCG;
@@ -81,6 +86,25 @@ solvers
         relTol          0;
     }
 }
+
+PIMPLE
+{
+    nOuterCorrectors 1;
+}
+relaxationFactors
+{
+    fields
+    {
+	    p	1.0;
+    }
+    equations
+    {
+        "U.*"           1.0;
+        "k.*"           1.;
+        "epsilon.*"    1.;
+    }
+}
+
 
 PISO
 {

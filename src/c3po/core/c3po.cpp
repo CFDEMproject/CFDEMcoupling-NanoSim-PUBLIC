@@ -58,15 +58,15 @@ using namespace C3PO_NS;
 c3po::c3po(int narg, char **arg, MPI_Comm communicator) :
   c3poBaseInterfaceVector_( new c3poBaseInterfaceVector),
   timer_             ( c3poBaseInterfaceVector_->add<Timer>(new Timer(this),"timer")),
-  control_           ( c3poBaseInterfaceVector_->add<Control>(new Control(this),"control")),    //the string is that in the input script"
-  comm_              ( c3poBaseInterfaceVector_->add<Comm>(new Comm(this,communicator),"comm")),    //the string is that in the input script"
-  input_             ( c3poBaseInterfaceVector_->add<Input>(new Input(this),"input")),  //the string is that in the input script"
-  output_            ( c3poBaseInterfaceVector_->add<Output>(new Output(this),"output")), //the string is that in the input script"
-  error_             ( c3poBaseInterfaceVector_->add<Error>(new Error(this),"error")),  //the string is that in the input script"
-  operationContainer_( c3poBaseInterfaceVector_->add<OperationContainer>(new OperationContainer(this),"operation" ) ), //the string is that in the input script"
-  selectorContainer_ ( c3poBaseInterfaceVector_->add<SelectorContainer>(new SelectorContainer(this),"selector" ) ), //the string is that in the input script"
-  dataStorageInternal_(c3poBaseInterfaceVector_->add<DataStorage>(new DataStorage(this),"storage")),  //the string is that in the input script"
-  mesh_(c3poBaseInterfaceVector_->add<c3poMesh>(new c3poMesh(this),"mesh"))  //the string is that in the input script"
+  control_           ( c3poBaseInterfaceVector_->add<Control>(new Control(this),"control")),    //the std::string is that in the input script"
+  comm_              ( c3poBaseInterfaceVector_->add<Comm>(new Comm(this,communicator),"comm")),    //the std::string is that in the input script"
+  input_             ( c3poBaseInterfaceVector_->add<Input>(new Input(this),"input")),  //the std::string is that in the input script"
+  output_            ( c3poBaseInterfaceVector_->add<Output>(new Output(this),"output")), //the std::string is that in the input script"
+  error_             ( c3poBaseInterfaceVector_->add<Error>(new Error(this),"error")),  //the std::string is that in the input script"
+  operationContainer_( c3poBaseInterfaceVector_->add<OperationContainer>(new OperationContainer(this),"operation" ) ), //the std::string is that in the input script"
+  selectorContainer_ ( c3poBaseInterfaceVector_->add<SelectorContainer>(new SelectorContainer(this),"selector" ) ), //the std::string is that in the input script"
+  dataStorageInternal_(c3poBaseInterfaceVector_->add<DataStorage>(new DataStorage(this),"storage")),  //the std::string is that in the input script"
+  mesh_(c3poBaseInterfaceVector_->add<c3poMesh>(new c3poMesh(this),"mesh"))  //the std::string is that in the input script"
 {
     input_->process_input_script();
 }
@@ -150,7 +150,11 @@ void c3po::setCells(int * number_of_cells, int * global_number_of_cells, double 
 // *************************************************************
 void c3po::preRunOperations() const
 {
+ 
+ dataStorageInternal_->readParticles();
+ 
  dataStorageInternal_->gatherParticleData();
+ 
 
 }
 
@@ -193,31 +197,20 @@ void c3po::runFilters(int id) const
  if(doParticle_) 
  {
     int numPar_=dataStorageInternal_-> MaxNumOfParticles(); 
- 
+    selectorContainer_->isParticle();
   //Run particleBased Filtering operations 
   for(int n=0;n<numPar_;n++)
    {
-        int selCell;
-            
-        if(n<dataStorageInternal_-> numOfParticles())   
-        {
-          selCell = selectorContainer_->selectCell( dataStorageInternal_->getParticle(n)->getpos()[0],
-                                                       dataStorageInternal_->getParticle(n)->getpos()[1],
-                                                       dataStorageInternal_->getParticle(n)->getpos()[2]
-                                                     );
-        }
-        else selCell = MaxNofCells;
-        
-            
-            selectorContainer_->setCurrentCell(selCell);
-            selectorContainer_->setCurrentParticle(n);
-            selectorContainer_->begin_of_step();    
+      int par=n; 
+   
+      selectorContainer_->setCurrentParticle(par);
+      selectorContainer_->begin_of_step();    
            
-         for(int s=0;s<NofFilteringOp_;s++)
-          if(operationContainer_->filter(s)->particleBased()) 
-            operationContainer_->filter_middle_of_step(s);
+      for(int s=0;s<NofFilteringOp_;s++)
+       if(operationContainer_->filter(s)->particleBased()) 
+         operationContainer_->filter_middle_of_step(s);
 
-        }
+    }
     
     
      
@@ -225,11 +218,22 @@ void c3po::runFilters(int id) const
   
  if(doCell_)
  {   
+  #ifdef C3PO_DEBUG_TRUE
+  int perc=int(MaxNofCells/100);
+  #endif
   selectorContainer_->resetFSize();
-  selectorContainer_->resetFilterVolume(); 
+  selectorContainer_->resetFilterVolume();
+  selectorContainer_->isCell(); 
    //Run Eulerian Filtering operations  
     for (int n=0;n<MaxNofCells;n++)     
      { 
+      
+      #ifdef C3PO_DEBUG_TRUE
+      if(comm_->is_proc_0())
+       if(n % perc ==0)
+        std::cout <<  "\n cell filter " << filtName_ <<" running =====>  " << n/MaxNofCells*100 << "%";
+      #endif
+    
        
        selectorContainer_->setCurrentCell(n);
              

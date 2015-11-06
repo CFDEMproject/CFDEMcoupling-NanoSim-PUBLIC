@@ -104,7 +104,7 @@ void SamplingGeneral::process_input(QJsonObject jsonObj)
                                 0,
                                 "ERROR:Invalid vector component! Valid vector components are:\n 0 (= x )\n 1 (= y )\n 2 (= z ) \n");
   //Multisampling
-  int ssize_=VFtoSample_.size() + SFtoSample_.size();
+ // int ssize_=VFtoSample_.size() + SFtoSample_.size();
   if(execFormula_) createSampleVectors(VFtoSample_.size(),SFtoSample_.size(),1);
   else createSampleVectors(VFtoSample_.size(),SFtoSample_.size(),0);  
 

@@ -25,10 +25,7 @@ FoamFile
 
 //===========================================================================//
 // sub-models & settings
-
-//scalarTransportModel temperatureModel;
-
-DT              DT [ 0 2 -1 0 0 0 0 ] 2.1399e-5;//2.1399e-5;  // lambda/(rho*Cp) = 0.0256/(1.188*1007)
+solveFlow   true;
 
 modelType B; // A or B
 
@@ -63,7 +60,7 @@ forceModels
 
 momCoupleModels
 (
-    implicitCouple
+    implicitCouple 
 );
 
 turbulenceModelType RASProperties;//LESProperties;//
@@ -81,7 +78,7 @@ scalarGeneralExchangeProps
     partHeatFluxName        "convectiveHeatFlux";
     lambda                  0.0256;
     Cp                      1007;
-
+    useLiMason              true;  
     //Lists with information for each species FOR THE PARTICLES
     //MUST be in the same order as eulerian species in 'scalarTransportProperties'
     //MUST correspond to property/atom in ligghts (use 'couple/cfd/speciesConvection' to auto-generate individual fields)
@@ -114,6 +111,11 @@ implicitCoupleProps
     granVelFieldName        "Us";
     voidfractionFieldName   "voidfraction";
     //KslLimit 0;  // source switched off!!!
+}
+
+explicitCoupleProps
+{
+    //fLimit (0 0 0);
 }
 
 KochHillDragProps

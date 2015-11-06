@@ -132,7 +132,7 @@ int main(int argc, char *argv[])
     
     for(int i=0;i<3;i++)
     {
-     position_[i]=0.0;
+     position_[i]=-0.0;
      velocity_[i]=0.0;
      force_[i]=0.0;    
     }

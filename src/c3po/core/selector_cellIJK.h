@@ -73,6 +73,7 @@ class SelectorCellIJK : public SelectorBase
     private:
     
     int currentCell_;
+    int currentPar_;
     double tolerance_;
     
     int* cellList_;
@@ -80,6 +81,7 @@ class SelectorCellIJK : public SelectorBase
     int* max_;
     int* min_;
     double* cellCoord_;
+    
     
     
     bool checkPosition(double posA, double max, double min );

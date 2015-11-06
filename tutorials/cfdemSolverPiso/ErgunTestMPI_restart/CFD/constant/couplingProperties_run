@@ -25,7 +25,7 @@ FoamFile
 
 //===========================================================================//
 // sub-models & settings
-
+debug false;
 modelType "A"; // A or B
 
 couplingInterval 100;

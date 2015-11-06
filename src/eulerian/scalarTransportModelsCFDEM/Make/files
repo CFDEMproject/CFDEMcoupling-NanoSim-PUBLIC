@@ -1,0 +1,14 @@
+scalarTransportModel/scalarTransportModel.C
+scalarTransportModel/newScalarTransportModel.C
+
+/*Sub-Level*/
+temperatureModel/temperatureModel.C
+generalManual/generalManual.C
+noTransport/noTransport.C
+
+/*Fields*/
+eulerianScalarField/eulerianScalarField.C
+eulerianScalarField/newEulerianScalarField.C
+
+
+LIB = $(CFDEM_LIB_DIR)/libscalarTransportModelsCFDEM

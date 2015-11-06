@@ -116,6 +116,8 @@ class Input : public c3poBase, public c3poBaseInterface, public InputBase
     bool writeInterface() const;
     
     void csv_columnsToRead( int *columns) const;   
+    
+    void readParticles(std::vector<double>* positions_) const;
   
    
     private:
@@ -129,6 +131,8 @@ class Input : public c3poBase, public c3poBaseInterface, public InputBase
       mutable QJsonObject    mainObj_;
 
       mutable QJsonObject    meshMainSettings_;
+      
+      
 
       mutable QString        myName;
 
@@ -143,7 +147,7 @@ class Input : public c3poBase, public c3poBaseInterface, public InputBase
       mutable bool storageWriteFields_;
       mutable bool storageWriteParticles_;
       
-      mutable std::vector< std::string>  VF_names; //names of the vector fields
+      mutable std::vector< std::string>  VF_names; //names of the std::vector fields
       mutable std::vector< std::string>  SF_names; //names of the scalar fields
       
       void readBCfromJson() const;

@@ -420,6 +420,16 @@ averagingModel::~averagingModel()
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
+void Foam::averagingModel::applyDebugSettings(bool debug) const
+{
+    if(!debug)
+    {
+        UsWeightField_.writeOpt() = IOobject::NO_WRITE;
+        UsPrev_.writeOpt() = IOobject::NO_WRITE;
+        UsNext_.writeOpt() = IOobject::NO_WRITE;
+    }
+}
+
 } // End namespace Foam
 
 // ************************************************************************* //

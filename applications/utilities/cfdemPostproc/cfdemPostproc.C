@@ -121,6 +121,8 @@ int main(int argc, char *argv[])
             NULL
         );
 
+        for (int i=0;i<particleCloud.nrForceModels();i++) particleCloud.forceM(i).setForce();
+
         runTime.write();
 
         particleCloud.IOM().dumpDEMdata();

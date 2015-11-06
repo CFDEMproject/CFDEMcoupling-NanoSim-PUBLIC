@@ -85,9 +85,11 @@ public:
 
         bool reAllocArrays() const;
     
-        bool evolve();
+        bool evolve(volScalarField&);
 
-        void calcVelocityCorrection(volScalarField&,volVectorField&,volScalarField&,volScalarField&); // this could be moved to an IB mom couple model
+        void calcVelocityCorrection(volScalarField&,volVectorField&,volScalarField&,volScalarField&);
+
+        void setParticleVelocity(volVectorField&);
 
       // Access
         vector angularVelocity(int);
