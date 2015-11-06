@@ -76,7 +76,3 @@ Go back
 -----------
  - [commands](10_commandTypes.md) 
 
-Read more
-----------
- - [filtering sampling locations](20_samplingLocations.md) 
-

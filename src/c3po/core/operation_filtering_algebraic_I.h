@@ -70,20 +70,6 @@ namespace C3PO_NS
   void endAlgebraic();
   void runParAlgebraic();
   void white_end() {}; 
-  
-  mutable double* fieldsToAdd_;
-  
-  mutable int* displs_;
-  mutable int* recvCount_;
-  mutable int totFields_;
-  mutable double* recvBuf_;
-  
-  mutable double** fieldsPerProc_;
-  mutable double** tmpData_;
-  
-  mutable double** VTmp_;
-  mutable double** Var_;
-  mutable int totVar_;
      
  };
 }

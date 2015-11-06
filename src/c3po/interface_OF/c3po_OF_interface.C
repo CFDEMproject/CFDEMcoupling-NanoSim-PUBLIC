@@ -225,11 +225,8 @@ void c3poOFInterface::createFilteredFields(int id)
   {
    std::vector<std::string> vectorFields_(myC3po_->vectorFTF(f_));
    std::vector<std::string> scalarFields_(myC3po_->scalarFTF(f_));
-   std::vector<std::string> vectorVariance(myC3po_->vectorFTFVariance(f_));
-   std::vector<std::string> scalarVariance(myC3po_->scalarFTFVariance(f_));
    std::string OpName_(myC3po_->getOpFilterName(f_));
    for (unsigned int n=0; n<vectorFieldsIn_.size();n++) 
-   {
     for (unsigned int i=0; i<vectorFields_.size();i++)
      if(vectorFields_[i].compare(nameVectorFieldsIn_[n])==0)
      {   
@@ -243,32 +240,12 @@ void c3poOFInterface::createFilteredFields(int id)
          vectorFieldsC3PO_.push_back(v_);
          
          myC3po_->registerVF(nameVectorFieldsIn_[n],&((*v_)[0].component(0)),&((*v_)[0].component(1)),&((*v_)[0].component(2)),3); 
-      }
-    
-    for (unsigned int i=0; i<vectorVariance.size();i++)
-     if(vectorVariance[i].compare(nameVectorFieldsIn_[n])==0)
-     {   
-         char buf[26];
-         sprintf(buf,"_var%i_",i);
-         std::string fieldName_(nameVectorFieldsIn_[n]); 
-         fieldName_.append("_");
-         fieldName_.append(OpName_.c_str()); 
-         fieldName_.append(buf);
-         fieldName_.append(filterName_.c_str());      
-         volVectorField *v_= new volVectorField( fieldName_.c_str(),*vectorFieldsIn_[n]);
-        
-         vectorFieldsC3PO_.push_back(v_);
-         
-         myC3po_->registerVF(nameVectorFieldsIn_[n],&((*v_)[0].component(0)),&((*v_)[0].component(1)),&((*v_)[0].component(2)),3); 
       }  
-   }    
-   
+       
    for (unsigned int n=0; n<scalarFieldsIn_.size();n++)
-   {
     for (unsigned int i=0; i<scalarFields_.size();i++)
      if(scalarFields_[i].compare(nameScalarFieldsIn_[n])==0)
      {
-       
        std::string fieldName_(nameScalarFieldsIn_[n]);
        fieldName_.append("_");
        fieldName_.append(OpName_.c_str()); 
@@ -280,28 +257,7 @@ void c3poOFInterface::createFilteredFields(int id)
          
        myC3po_->registerSF(nameScalarFieldsIn_[n],&((*s_)[0]));
      }  
-    
-    for (unsigned int i=0; i<scalarVariance.size();i++)
-     if(scalarVariance[i].compare(nameScalarFieldsIn_[n])==0)
-     {
-       char buf[26];
-         sprintf(buf,"_var%i_",i);
-         
-       
-       std::string fieldName_(nameScalarFieldsIn_[n]);
-       fieldName_.append("_");
-       fieldName_.append(OpName_.c_str()); 
-       fieldName_.append(buf);
-       fieldName_.append(filterName_.c_str());        
-       volScalarField *s_=new volScalarField( fieldName_.c_str(),*scalarFieldsIn_[n]);
-        
-       scalarFieldsC3PO_.push_back(s_);
-         
-       myC3po_->registerSF(nameScalarFieldsIn_[n],&((*s_)[0]));
-     }  
-    
-    
-    }
+  
   }
 }
 //------------------------------------------------------------------//

@@ -48,6 +48,13 @@ eulerianScalarField::eulerianScalarField
     dict_(dict),
     particleCloud_(sm),
     fieldName_(modelType),
+    cpVolumetricFieldName_(dict_.lookupOrDefault<word>("cpVolumetricFieldName", "na")),
+    cpVolumetric_(dict_.lookupOrDefault<scalar>("cpVolumetric", 0.0)),
+    updateMixtureProperties_(dict_.lookupOrDefault<bool>("updateMixtureProperties", false)),
+    rho_(dict_.lookupOrDefault<scalar>("rho"+fieldName_, -1)),
+    rhoCarrier_(dict_.lookupOrDefault<scalar>("rhoCarrier", -1)),
+    cp_(dict_.lookupOrDefault<scalar>("cp"+fieldName_, -1)),
+    cpCarrier_(dict_.lookupOrDefault<scalar>("cpCarrier", -1)),
     m_
     (   IOobject
         (
@@ -69,6 +76,17 @@ eulerianScalarField::eulerianScalarField
             IOobject::AUTO_WRITE
         ),
         sm.mesh()
+    ),
+    mSourceKImpl_
+    (   IOobject
+        (
+            fieldName_+"SourceKImpl",
+            sm.mesh().time().timeName(),
+            sm.mesh(),
+            IOobject::NO_READ,
+            IOobject::AUTO_WRITE
+        ),
+        0.0*mSource_ /( m_ + dimensionedScalar("dummy", m_.dimensions(), 1e-32) ) //initi with zero
     ),
     fieldType_("undefined"),
     fvOptions_(sm.mesh())
@@ -93,6 +111,21 @@ eulerianScalarField::eulerianScalarField
 
     fvOptions_.reset(dict.subDict("fvOptions"+fieldName_));
 
+    if( (cpVolumetricFieldName_=="na"||!updateMixtureProperties_) && cpVolumetric_<=0.0)
+        FatalError <<"You did not specify a cpVolumetricFieldName (or you do not updateMixtureProperties) and also cpVolumetric is zero (or negative)! Either provide the field name, or set cpVolumetric to a reasonable value. \n" 
+                   << abort(FatalError);    
+
+    if(speciesID_>-1 && updateMixtureProperties_ && (rho_<=0 || cp_<=0) )
+        FatalError <<"You like to update the phase properties, but density and cp of the eulerianScalarField with name '" 
+                   << fieldName_
+                   <<"' are not specified or zero. \n" 
+                   << abort(FatalError);    
+
+    if(speciesID_>-1 && updateMixtureProperties_ && (rhoCarrier_<=0 || cpCarrier_<=0) )
+        FatalError <<"You like to update the phase properties, but density and cp of the carrier phase are not specified or zero \n" 
+                   << abort(FatalError);    
+
+
 }
 
 
@@ -102,23 +135,101 @@ eulerianScalarField::~eulerianScalarField()
 {}
 
 // * * * * * * * * * * * * * * * * Member Fct  * * * * * * * * * * * * * * * //
+void eulerianScalarField::pullCloudFields() const 
+{
+    //Temporary field for collecting the sources
+    volScalarField tmpSource
+    (   IOobject
+        (
+            "tmpSource",
+            particleCloud_.mesh().time().timeName(),
+            particleCloud_.mesh(),
+            IOobject::NO_READ,
+            IOobject::NO_WRITE
+        ),
+        mSource_*0.0
+    );
 
+    volScalarField tmpSourceImpl
+    (   IOobject
+        (
+            "tmpSourceImpl",
+            particleCloud_.mesh().time().timeName(),
+            particleCloud_.mesh(),
+            IOobject::NO_READ,
+            IOobject::NO_WRITE
+        ),
+        mSourceKImpl_*0.0
+    );
+
+    //reset sources, and compute the sources due to the cloud
+    //Will accumulate all sources for all force models
+    for (int iModel=0; iModel<particleCloud_.nrForceModels(); iModel++)
+    {
+        particleCloud_.forceM(iModel).manipulateScalarField(tmpSource, tmpSourceImpl, speciesID_);
+        if(iModel==0)
+        {
+            mSource_        = tmpSource;
+            mSourceKImpl_   = tmpSourceImpl;
+        }
+        else
+        {
+            mSource_       += tmpSource;
+            mSourceKImpl_  += tmpSourceImpl;
+        }
+    }
+
+}
+
+// ************************************************************
 void eulerianScalarField::update(surfaceScalarField phi, volScalarField voidfraction, volScalarField nuEff, scalar Sc) const 
 {
 
-    particleCloud_.forceM(1).manipulateScalarField(mSource_,speciesID_);
+    //Normalize source in case we have a temperature field
+    if(fieldType_=="temperature")
+    {
+        if(cpVolumetricFieldName_=="na" || !updateMixtureProperties_) //use also if mixture properties are not updated
+        {
+            mSource_.internalField()      /= cpVolumetric_;
+            mSourceKImpl_.internalField() /= cpVolumetric_;
+        }
+        else
+        {
+            const volScalarField& cpVolumetricField_(particleCloud_.mesh().lookupObject<volScalarField> (cpVolumetricFieldName_));
+            mSource_.internalField()      /= cpVolumetricField_.internalField();
+            mSourceKImpl_.internalField() /= cpVolumetricField_.internalField();
+        }
+    }
+
+  
+    word divScheme("div(phi,m)");
+    word laplacianScheme("laplacian(D,m)");
+
+    if( speciesID_== -1)
+    {
+        divScheme       = "div(phi,T)";
+        laplacianScheme = "laplacian((DT*voidfraction),T)";
+    }
+
 
     // solve scalar transport equation
     fvScalarMatrix mEqn
     (
-       fvm::ddt(voidfraction, m_) - fvc::ddt(voidfraction, m_)  
-     + fvm::div(phi, m_)
+
+       fvm::ddt(voidfraction, m_)               //This is the material derivative in a modified form
+     - fvm::Sp(fvc::ddt(voidfraction), m_)      //Needed since phi is (U_face * voidfraction)!
+     + fvm::div(phi, m_, divScheme)
      - fvm::Sp(fvc::div(phi), m_)
-     - fvm::laplacian(nuEff/Sc*voidfraction, m_) 
+
      ==
-       mSource_
+
+       fvm::laplacian(nuEff/Sc*voidfraction, m_, laplacianScheme) 
+     + mSource_
+     + fvm::Sp(mSourceKImpl_, m_)
      + fvOptions_(m_)
+
     );
+
     mEqn.relax();
     fvOptions_.constrain(mEqn);
     mEqn.solve();

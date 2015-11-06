@@ -64,12 +64,10 @@ DataStorage::DataStorage(c3po *ptr) :
    nbody_(0),
    nbody_all_(0),
    isAllocated_(false),
-   MaxNofPar_(0),
-   readParticlesFromJson_(true)
+   MaxNofPar_(0)  
 {
     haveFieldDir_ = false;
     haveParticleDir_ = false;
-    nParticlesProc_=new int[comm().nprocs()];
 } 
 
 /* ---------------------------------------------------------------------------*/ 
@@ -78,7 +76,6 @@ DataStorage::~DataStorage()
     deleteRMA();
     deleteFields();
     deleteParticles();   
-    delete nParticlesProc_;
    
 }
 
@@ -87,11 +84,73 @@ DataStorage::~DataStorage()
 /////////////////////////////////////////////////////////////////////////////
 
 /* ----------------------------------------------------------------------
+   Read all necessary global properties so all MPI procs have them
+------------------------------------------------------------------------- */
+
+void DataStorage::read()
+{
+    //Allocate or Set Data arrays
+    allocateMe();
+}
+
+/* ----------------------------------------------------------------------
+   Write all necessary global properties so all MPI procs have them
+------------------------------------------------------------------------- */
+
+void DataStorage::write()
+{
+
+    //TODO
+    //Write particle information to file
+//    OperationProperties op(OPERATION_OUTPUT,false,false,false);
+
+    //output().write_screen_one("DataStorage is now writing some output");
+//    data().write(op);
+}
+
+
+/* ----------------------------------------------------------------------
+   Scatter global properties so all MPI procs have them
+------------------------------------------------------------------------- */
+
+void DataStorage::scatter()
+{
+    if(comm().nprocs() > 1)
+        error().throw_error_one(FLERR,"TODO: implement daat scattering if required");
+
+   //TODO: in CustomValueTracker
+   //make send buffer
+   //pack buffer
+   //unpack buffer
+}
+
+/* ----------------------------------------------------------------------
+   Scatter global properties so all MPI procs have them
+------------------------------------------------------------------------- */
+
+void DataStorage::parallelize()
+{
+    if(comm().nprocs() > 1)
+        error().throw_error_one(FLERR,"TODO: delete per-particle data if not in my subdomain");
+
+}
+
+/* ----------------------------------------------------------------------
    Intitialization phase - done before tun
 ------------------------------------------------------------------------- */
 
-void DataStorage::init() const
+void DataStorage::init()
 {
+
+    return;
+}
+
+void DataStorage::allocateMe() const
+{
+
+    printf("DataStorage: will allocate memory for %d operations in operationContainer(). \n", operationContainer().operationCount());
+
+    output().write_screen_one("\nDataStorage allocation completed.");
 
 }
 
@@ -108,123 +167,11 @@ void DataStorage::addParticle(double d, double* pos, double* vel, std::vector < 
  par_->setpos(pos);
  par_->setvel(vel);
  par_->setforce(force);
- par_->setId(particles_.size()-1);
  
  if(torque != NULL)
   par_->settorque(torque);
 }
-/* ---------------------------------------------------------------------------*/
-void DataStorage::readParticles() const
-{
- 
- timer().stamp();
 
- if(!readParticlesFromJson_) return;
- 
- readParticlesFromJson_=false;
- 
- input().readParticles(&parPos_);
- 
- for(unsigned int par=0;par<parPos_.size()/3;par++)
- {
- 
-  //Check if within processor boundaries
-  if( ! (
-         ( parPos_[3*par] < mesh().dLocalMax()[0]  )  
-          &&
-          
-         ( parPos_[3*par] > mesh().dLocalMin()[0]  ) 
-        )
-    ) continue;
- 
-  if( ! (
-         ( parPos_[3*par+1] < mesh().dLocalMax()[1]  )  
-          &&
-          
-         ( parPos_[3*par+1] > mesh().dLocalMin()[1]  ) 
-        )
-    ) continue;
-
-  if( ! (
-         ( parPos_[3*par+2] < mesh().dLocalMax()[2]  )  
-          &&
-          
-         ( parPos_[3*par+2] > mesh().dLocalMin()[2]  ) 
-        )
-    ) continue;
-
- 
-  Particle* par_ = new Particle();
-  particles_.push_back(par_);
-  
-  par_->setpos(&parPos_[3*par]);
-  par_->setId(par);
- 
- }
- 
-// removeGhostParticles(); This function will badly affect parallel scalability!!
- timer().stamp(TIME_INPUT);
-}
-
-/* ---------------------------------------------------------------------------*/
-void DataStorage::removeGhostParticles() const
-{
- 
- int idvec[particles_.size()];
- 
- for(unsigned int i=0; i<particles_.size();i++)
-  idvec[i]=particles_[i]->getId(); 
-  
- int counts=0;
- int displs[comm().nprocs()];
- int recvcounts[comm().nprocs()]; 
- int size=particles_.size();
- 
- MPI_Allgather(&size,1,MPI_INT,&recvcounts[0],1,MPI_INT,MPI_COMM_WORLD);
- 
- for(int n=0; n<comm().nprocs(); n++)
- {
-  displs[n]=counts;
-  counts+=recvcounts[n];
- 
- }
-
- int buf[counts];
- 
- MPI_Allgatherv(&idvec[0], particles_.size(), MPI_INT, &buf[0], &recvcounts[0], &displs[0], MPI_INT, MPI_COMM_WORLD);
-
- for(int i=0;i<size;i++)
- {
-  for(int n=0;n<comm().nprocs();n++)
-  {
-   if(n==comm().me()) continue;
-   
-   for(int s=displs[n];s<recvcounts[n]+displs[n];s++)
-   {
-   
-    if(particles_[i]->getId() == buf[s])
-     if(n<comm().me())
-     {
-      delete particles_[i];
-      particles_.erase(particles_.begin()+i);
-     
-     }
-   
-   }
-  
-  }
- 
- }
- 
- //Now fill  MaxNofPar_ 
- 
- MaxNofPar_=0;
- 
- for(int n=0; n<comm().nprocs(); n++)
-  if(MaxNofPar_<recvcounts[n])
-    MaxNofPar_=recvcounts[n]; 
-}
- 
 /* ---------------------------------------------------------------------------*/
 void DataStorage::deleteParticles()
 {
@@ -235,13 +182,14 @@ void DataStorage::deleteParticles()
 /* ---------------------------------------------------------------------------*/
 void DataStorage::gatherParticleData() const
 {
+ int tmp_[comm().nprocs()];
  int localNPar_ = particles_.size();
  
- MPI_Allgather(&localNPar_,1,MPI_INT,nParticlesProc_,1,MPI_INT,MPI_COMM_WORLD);
+ MPI_Allgather(&localNPar_,1,MPI_INT,tmp_,1,MPI_INT,MPI_COMM_WORLD);
  
  //find the max
  for(int i=0;i<comm().nprocs();i++)
-  if(MaxNofPar_<nParticlesProc_[i]) MaxNofPar_=nParticlesProc_[i];
+  if(MaxNofPar_<tmp_[i]) MaxNofPar_=tmp_[i];
  
  
 }
@@ -304,7 +252,7 @@ void DataStorage::writeFields(std::string OpName)
    std::vector<double*>     dataS_;
    std::vector<std::string> dataNS_;
    
-   //save std::vector data
+   //save vector data
    for (int n=0;n<fVF_size;n++)     
    {
          dataVPointer_.push_back(fVF_[n]->values());
@@ -792,12 +740,12 @@ void DataStorage::deleteRMA()
 /* ---------------------------------------------------------------------------*/ 
 std::string DataStorage::NameChanges(std::string OpName)
 {
-   std::ostringstream temp[3];
+   std :: ostringstream temp[3];
    
    for (int i=0;i<3;i++)
     temp[i] << selectorContainer().filterWidth()[i];
    
-   std::ostringstream temp2;
+   std :: ostringstream temp2;
    temp2 << comm().me();
    
    std::string result("_"+timeName_+"_"+OpName.c_str()+"_processor"+temp2.str());

@@ -40,11 +40,9 @@ License
 #include "stdio.h"
 #include "input_properties.h"
 #include <iostream>
-#include <sstream>
 #include <iomanip>
 #include <sys/stat.h>
 #include <stdlib.h> 
-#include "timer.h"
 using std::cout;
 using std::endl;
 
@@ -87,8 +85,7 @@ Input::~Input()
 
 void Input::process_input_script()
 {
-     
-    timer().stamp();     
+         
     char filename [400];
     
     sprintf(filename,"./c3po_control/c3po.input");
@@ -153,7 +150,6 @@ void Input::process_input_script()
     }
 
     output().write_screen_one("\n ***   C3PO processed your inputs.   ***\n\n");
-    timer().stamp(TIME_INPUT);
     
 }
 
@@ -380,61 +376,4 @@ std::string Input::getSFname(int x)
   return emp;
 }
 
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-
-void Input::readParticles(std::vector<double>* positions_) const
-{
- 
- if(!mainObj_["filteringSamplingLocations"].toBool()) return;
- 
- 
- positions_->clear();
- 
- QJsonDocument loadDoc;
- 
- QJsonObject    parObj_;
- 
- loadDoc = openJsonFile("c3po_control","filteringSamplingLocations","filteringSamplingLocations", parObj_ );
- 
- if(parObj_["numberOfSamples"].isNull())
- {
-  error().throw_error_one(FLERR,"ERROR: can not find \"numberOfSamples\" entry in c3po_control/filteringSamplingLocations.json \n If you are not interest in filtering Sampling, please set \"filteringSamplingLocations\" to false in c3po_control/c3po.json \n "); 
- }
- 
- int nPar_ = parObj_["numberOfSamples"].toInt();
- 
- if(parObj_["positions"].isNull())
-  error().throw_error_one(FLERR,"ERROR: entry \"positions\" not specified in c3po_control/filteringSamplingLocations.json");
- 
- 
- QJsonObject    posObj_ = parObj_["positions"].toObject();
- 
- for(int par=0;par<nPar_;par++) 
- {
-  
-  std::stringstream ss;
-  ss << par;
-  std::string str = ss.str();
-  
-  if(posObj_[str.c_str()].isNull())
-   error().throw_error_one(FLERR,"ERROR: found samples are inconsistent with the \"numberOfSamples\" entry or invalid sample id");
-   
-  QJsonArray dataArray =  posObj_[str.c_str()].toArray();
-  
-  if(dataArray.count()!=3)
-   error().throw_error_one(FLERR,"ERROR: wrong array length in c3po_control/filteringSamplingLocations.json!");
-   
-  for(int i=0;i<3;i++)
-   positions_->push_back((dataArray[i]).toDouble());
-
-
- }
- 
- int regPar_= positions_->size()/3;
- 
- if(regPar_!=nPar_)
-   error().throw_error_one(FLERR,"ERROR: found samples are inconsistent with the \"numberOfSamples\" entry!");
- 
-
-}
 

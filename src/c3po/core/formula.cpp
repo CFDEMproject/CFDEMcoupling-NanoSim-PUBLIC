@@ -118,11 +118,11 @@ void Formula::interpretFormula(int numVecs, int numScalars) const
          {
           if( numerator_[i-1]=='e' && numerator_[i-2]=='v')
           {
-           if(i==numerator_.size()-1) throw_error("interpretFormula","std::vector field number missing!");
+           if(i==numerator_.size()-1) throw_error("interpretFormula","vector field number missing!");
            
-           numerator_[i+1]=numerator_[i+1]-1; //for std::vectors just decrease the index
+           numerator_[i+1]=numerator_[i+1]-1; //for vectors just decrease the index
            
-           if(numerator_[i+1]-'0'>9) throw_error("interpretFormula","std::vector field number missing!");
+           if(numerator_[i+1]-'0'>9) throw_error("interpretFormula","vector field number missing!");
            
             
            numerator_.erase(numerator_.begin()+i-2,numerator_.begin()+i+1);
@@ -130,7 +130,7 @@ void Formula::interpretFormula(int numVecs, int numScalars) const
          }
          else
          {
-          throw_error("interpretFormula","std::vector field not correctly defined in your formula numerator!");
+          throw_error("interpretFormula","vector field not correctly defined in your formula numerator!");
          }
         } 
         
@@ -177,11 +177,11 @@ void Formula::interpretFormula(int numVecs, int numScalars) const
         {
         if( denominator_[i-1]=='e' && denominator_[i-2]=='v' )
          {
-            if(i==denominator_.size()-1) throw_error("interpretFormula","std::vector field number missing!");
+            if(i==denominator_.size()-1) throw_error("interpretFormula","vector field number missing!");
             
-            denominator_[i+1]=denominator_[i+1]-1; //for std::vectors just decrease the index
+            denominator_[i+1]=denominator_[i+1]-1; //for vectors just decrease the index
             
-             if(denominator_[i+1]-'0'>9) throw_error("interpretFormula","std::vector field number missing!");
+             if(denominator_[i+1]-'0'>9) throw_error("interpretFormula","vector field number missing!");
             
             denominator_.erase(denominator_.begin()+i-2,denominator_.begin()+i+1);
          }

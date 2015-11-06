@@ -20,7 +20,9 @@ Application / Class
     eulerianScalarField
     
 Description
-    Base class for moment transport model & FVM-based solver
+    Base class for moment transport model & FVM-based solver.
+    WARNING:    the surfaceScalarField 'phi' must be based on U*voidfraction,
+                and not on U!
 
 \*---------------------------------------------------------------------------*/
 
@@ -51,9 +53,26 @@ protected:
 
         const word              fieldName_;
 
-        mutable volScalarField  m_;         // transported quantity
+        word                    cpVolumetricFieldName_;   // name of the field holding the volumetric heat capacity
+                                                          // if not provided, must specify a constant holding this value
 
-        mutable volScalarField  mSource_;   // source of transported quantity
+        scalar                  cpVolumetric_;            // the (constant) volumetric heat capacity (optional)
+
+        //species properties (if required, these properties will be set, default = -1
+        bool                    updateMixtureProperties_;   // switch to indicate whether phase properties will be updated or not
+        scalar                  rho_;                     // the density of this field
+        scalar                  rhoCarrier_;              // the density of the carrier field
+        scalar                  cp_;                      // the heat capacity of this field
+        scalar                  cpCarrier_;               // the heat capacity of the carrier field
+
+        mutable volScalarField  m_;                       // transported quantity
+
+        mutable volScalarField  mSource_;   // source of transported quantity; 
+                                            // might involve part of implicit term
+
+        mutable volScalarField  mSourceKImpl_;   // pre-factor for implicit source
+                                                 // will be added with negative sign in transport eqn.
+                                                 // will shadowed
 
         mutable word            fieldType_;
 
@@ -113,6 +132,8 @@ public:
 
 
     // Member Functions
+    void pullCloudFields() const ;
+
     void update(surfaceScalarField, volScalarField, volScalarField, scalar Sc) const ;
 
     void bound(autoPtr<eulerianScalarField>*) const {};
@@ -120,9 +141,16 @@ public:
     // Access
     word fieldType() const                 { return fieldType_; };
 
-    inline volScalarField& m()       const {return m_;}; //returns the transported quantity
+    inline bool updateMixtureProperties() const   { return updateMixtureProperties_; };
+    inline scalar rho()          const            { return rho_; };
+    inline scalar rhoCarrier()   const            { return rhoCarrier_; };
+    inline scalar cp()           const            { return cp_; };
+    inline scalar cpCarrier()    const            { return cpCarrier_; };
 
-    inline volScalarField& mSource() const {return mSource_;}; //returns the source
+    inline volScalarField& m()            const {return m_;}; //returns the transported quantity
+
+    inline volScalarField& mSource()      const {return mSource_;}; //returns the source
+    inline volScalarField& mSourceKImpl() const {return mSourceKImpl_;}; //returns the implicit prefactor of the source
 
 };
 

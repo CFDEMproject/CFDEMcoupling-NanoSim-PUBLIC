@@ -37,17 +37,13 @@ License
 using namespace C3PO_NS;
 
 Particle::Particle()
-:
-id_(-1)
 {
  buf[0]=0.0;
  buf[1]=0.0;
  buf[2]=0.0;
  torque_=&buf[0];
  vel_=&buf[0];
- pos_=&buf[0];
  cellCentreId_=-1;
- force_=&forceBuf_[0];
  
 }
 

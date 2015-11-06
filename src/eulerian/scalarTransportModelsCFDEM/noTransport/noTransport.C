@@ -63,7 +63,8 @@ void noTransport::update()
 {}
 
 // ************************************************************
-
+volScalarField& noTransport::sourceField()
+{}
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 } // End namespace Foam

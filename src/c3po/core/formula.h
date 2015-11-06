@@ -51,7 +51,7 @@ namespace C3PO_NS
   Formula(const char* formula);
   ~Formula();
 
-  void            interpretFormula(int, int) const; //interprets the std::strings in the formula
+  void            interpretFormula(int, int) const; //interprets the strings in the formula
   std::string     getFormula() const; //just for display
   std::string     getNumerator() const; //just for display
   std::string     getDenominator() const; //just for display

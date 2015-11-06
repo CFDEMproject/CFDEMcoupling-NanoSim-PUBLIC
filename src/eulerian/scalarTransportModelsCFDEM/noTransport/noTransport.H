@@ -65,6 +65,8 @@ public:
 
     void update();
 
+    volScalarField& sourceField();
+
 };
 
 

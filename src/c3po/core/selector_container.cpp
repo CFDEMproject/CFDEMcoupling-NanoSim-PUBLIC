@@ -48,8 +48,7 @@ using namespace C3PO_NS;
 
 SelectorContainer::SelectorContainer(c3po *ptr) : c3poBase(ptr),
     selector_map_(new std::map<std::string,SelectorCreator>()),
-    ijk(false),
-    particleBased_(false)
+    ijk(false)
 {
   // fill map with all Selectors listed in style_selector.h
 

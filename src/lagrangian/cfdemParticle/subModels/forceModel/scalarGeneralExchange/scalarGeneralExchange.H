@@ -38,7 +38,10 @@ Description
     Li and Mason (2000), A computational investigation of transient heat
     transfer in  pneumatic transport of granular particles, Pow.Tech 112
     can be activated. However, this correlation is not suitable for 
-    dense granular flows
+    dense granular flows.
+
+    This model allows an implicit/explicit split of the coupling term.
+    The implicit/explicit splitting is realized in a force sub-model
 
     WARNING:
     This model REQUIRES the 'generalManual' speciesTransportModel
@@ -96,20 +99,26 @@ private:
     mutable double      **partDatFlux_;               // Lagrangian array
     mutable double      **partDatTransCoeff_;         // Lagrangian array
     mutable double      **partDatFluid_;              // Lagrangian array
+
+    mutable double      **partDatTmpExpl_;            // Lagrangian array - for explicit source to fluid eqns
+    mutable double      **partDatTmpImpl_;            // Lagrangian array - for implicit source to fluid eqns
     
     bool                validPartFlux_;               //indicator if found, based on heat, but also used for species
     bool                validPartTransCoeff_;         //indicator if found, based on heat, but also used for species
     bool                validPartFluid_;              //indicator if found, based on heat, but also used for species
 
+    bool                haveTemperatureEqn_;          //indicator for temperature field or not
+
     bool                useLiMason_;                  //switch to activate calculation using Li-Mason
 
     scalar              lambda_;                      // fluid thermal conductivity [W/(m*K)]
-    scalar              Cp_;                          // specific heat capacity [ J/(kg*K)]
+    scalar              Prandtl_;                     // Prandtl number
 
 
     //Species Word Lists
-    wordList            speciesFieldNames_;           //List with Eulerian fields to exchange (handed over)
+    wordList            eulerianFieldNames_;           //List with Eulerian fields to exchange (handed over)
 
+    scalarList          particleSpeciesValue_;         //list with scalar to indicate particle property is available
     const wordList      partSpeciesNames_;
     const wordList      partSpeciesFluxNames_;
     const wordList      partSpeciesTransCoeffNames_;
@@ -122,7 +131,7 @@ private:
 
     mutable scalar      scaleDia_;
 
-    void allocateMyArrays() const;
+    void allocateMyArrays(scalar initialValue) const;
 
     double NusseltLiMason(double Re, double Pr, double voidfraction) const;
     double NusseltDeenEtAl(double Re, double Pr, double voidfraction)  const;
@@ -151,7 +160,7 @@ public:
     // Member Functions
         void setForce() const;
 
-        void manipulateScalarField(volScalarField&, int) const;
+        void manipulateScalarField(volScalarField&, volScalarField&, int) const;
 };
 
 

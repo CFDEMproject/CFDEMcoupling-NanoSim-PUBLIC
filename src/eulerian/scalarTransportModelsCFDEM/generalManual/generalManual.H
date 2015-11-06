@@ -16,6 +16,10 @@ License
 
     Copyright (C) 2014- Stefan Radl, TU Graz, Austria
 
+    Description
+    Evolves an arbitrary number of scalar quantities, exchanges sources
+    with the granular phase
+
 \*---------------------------------------------------------------------------*/
 
 #ifndef generalManual_H
@@ -51,6 +55,14 @@ protected:
 
     scalar                          PrT_; // - Turbulent Prandtl number (optional, default = 0.7)
 
+    int                             idTemp_;    //id with temperature field
+
+    //Extra fields to represent a mixture in the void space
+    bool                            updateMixtureProperties_;   // switch to indicate whether phase properties will be updated or not
+    volScalarField                  rhoMix_;                  //field (if needed) to hold mixture density
+    volScalarField                  cpRho_;                   //field (if needed) to hold volumetric cp-value
+
+
 public:
 
     //- Runtime type information
@@ -73,11 +85,17 @@ public:
 
     // Member Functions
 
+    const                eulerianScalarField& eulerianTemperatureF();
+
     const                eulerianScalarField& eulerianScalarF(int);
 
     void                 createFields();
 
     void                 update();
+
+    void                 setSources();
+
+    void                 evolveFields();
 
     volScalarField&      sourceField(int i);
 

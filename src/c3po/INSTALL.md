@@ -82,8 +82,6 @@ Be sure you have correctly set the variables C3PO_SRC_DIR, e.g., in your .bashrc
 
 >export C3PO_HDF5_INC=$C3PO_HDF5_DIR/include
 
->export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$C3PO_QT5_LIB:$C3PO_HDF5_LIB
-
 >. $C3PO_SRC_DIR/etc/bashrc
 
 The C3PO_ADD_LIBS_DIR must point to an existing directory of the user's choice. The directory must contain a file called "additionalLibs" that is used to defined which libraries are linked the OpenFOAM(R)-type applications in the CPPPO package. The user has to provide this file. There is a template file "additionalLibs_C3PO_PARSCALE" in the folder src/lagrangian/cfdemParticle/etc/.

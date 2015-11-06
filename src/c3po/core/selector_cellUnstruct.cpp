@@ -46,6 +46,7 @@ License
 #include "timer.h"
 
 
+
 using namespace C3PO_NS;
 
 /* ----------------------------------------------------------------------
@@ -54,9 +55,7 @@ using namespace C3PO_NS;
 
 SelectorCellUnstruct::SelectorCellUnstruct(c3po *ptr,const char *name)
 :
-SelectorBase(ptr,name),
-currentCell_(-2),
-currentPar_(-2)
+SelectorBase(ptr,name)
 {
   cellList_=new double[3*comm().nprocs()];
   max_=new double[3*comm().nprocs()];
@@ -64,7 +63,6 @@ currentPar_(-2)
   tolerance_=c3po_ptr()->meshFilterWidthTolerance();
  
 }
-
 
 SelectorCellUnstruct::~SelectorCellUnstruct()
 {
@@ -113,25 +111,19 @@ int SelectorCellUnstruct::findNearestCell(double x, double y, double z)
 void SelectorCellUnstruct::begin_of_step()
 {
   selectorContainer().resetCellsInFilter();
+  currentCell_= *(selectorContainer().currentCell());
+  
   RunSelector();
   
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 void SelectorCellUnstruct::RunSelector()
 {
-
- 
+ timer().stamp();
  fillArrays(); 
  boundaryCorrections();
- 
- timer().stamp();
- 
- 
  int nprocs=comm().nprocs();
  double temp_[nprocs];
-   double vol[nprocs];
-   
-
  
  double r_ = (*selectorContainer().getFilterSize(0)) * (*selectorContainer().getFilterSize(0));
  double delta_[3];
@@ -147,14 +139,13 @@ void SelectorCellUnstruct::RunSelector()
  {
   
   int count_=0;
-  vol[p]=0.0;
+  double vol=0.0;
   bool loop=true;
-  bool loop2=false;
   int index_=3*p;
   
  //Check if in "dummy mode"
-
-  if((currentCell_>= mesh().MaxNofCellsProc()[p]) || (currentPar_>= dataStorage().getNofParticlesProc(p) ) )
+ if(p==comm().me())
+  if(! (currentCell_< mesh().MaxNofCellsProc()[p]) )
   {
    loop=false;
   }
@@ -191,57 +182,6 @@ void SelectorCellUnstruct::RunSelector()
  
   if(selectorContainer().filterType()==0) checkR=&SelectorCellUnstruct::checkPositionSphereDummy;
   else if(selectorContainer().filterType()==1) checkR=&SelectorCellUnstruct::checkPositionPeriodicSphere;
-  
- //Check if filtersize is bigger than the domain (that would save computational time...but just works for cartesian filters)
- 
- if(selectorContainer().filterType()==0)
- {
-  bool check[3];
-  for(int i=0;i<3;i++)
-  {
-   if(
-      (
-       !periodic_[i]                                 &
-       (mesh().dLocalMin()[i]  > min_[index_ + i] ) &&
-       (mesh().dLocalMax()[i]  < max_[index_ + i] ) &&
-       loop
-      )
-      
-      ||
-      
-      (
-        periodic_[i]                                &&
-       (mesh().dLocalMax()[i]  < max_[index_ + i] ) &&
-       loop
-      )
-      
-      ||
-     
-      (
-        periodic_[i]                                &&
-       (mesh().dLocalMin()[i]  > min_[index_ + i] ) &&
-       loop     
-      )
-    
-    ) check[i]=true;
-   else check[i]=false;
- 
-  }
- 
-  if( check[0] && check[1] && check[2])
-  {
-   loop=false;
-   loop2=true;
-  }
- }
-
-  if(input().verbose())
- {
- 
-    std::cout << "\n Processor: " << comm().me() << " select for proc: " << p
-              << " loop: " << loop << " loop2: " <<loop2;
- }
-
  //Now the real loop starts
  if(loop) 
   for(int cell=0; cell<NofCells_; cell++)
@@ -285,181 +225,81 @@ void SelectorCellUnstruct::RunSelector()
    
    count_++;
    selectorContainer().addCellInFilter(cell); 
-   vol[p] += *(mesh().CellVol(cell));
-   
-  }
- else if(loop2) //Every cell is added to filter!
-  for(int cell=0; cell<NofCells_; cell++)
-  {
-   
-   count_++;
-   selectorContainer().addCellInFilter(cell); 
-   vol[p] += *(mesh().CellVol(cell));
+   vol += *(mesh().CellVol(cell));
 
    
   }
+  MPI_Barrier(MPI_COMM_WORLD);
+  
  
-  if(input().verbose())
- {
-   
-    std::cout << "\n Processor: " << comm().me() << " over proc: " << p <<" filterVolume: " << vol[p];
- }
-
- 
-  selectorContainer().writeKey(p,count_);
- }
- 
-
- timer().stamp(TIME_SELECTOR);
- timer().stamp();
-   MPI_Allreduce(&vol, &temp_, nprocs, MPI_DOUBLE,
+  MPI_Allreduce(&vol, &temp_[p], 1, MPI_DOUBLE,
                MPI_SUM, MPI_COMM_WORLD);
   
- timer().stamp(TIME_SELECTOR_MPI);
- 
-  selectorContainer(). addFilterVolume(temp_[comm().me()]);
- 
+   
+   selectorContainer().writeKey(p,count_);
+ }
 
+  selectorContainer(). addFilterVolume(temp_[comm().me()]);
+ timer().stamp(TIME_SELECTOR);
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 void SelectorCellUnstruct::fillArrays()
 {
+ double currCellCoord_[3];
+ int nprocs=comm().nprocs();
  
- timer().stamp();
- 
- if(selectorContainer().particleBased())
- {  
-
-  currentPar_=selectorContainer().currentParticle();
-
-  double currParCoord_[3];
-  int nprocs=comm().nprocs();
-  
-  //Every processor has to know the coordinates of every current particle
-  if(currentPar_ <  dataStorage().getNofParticlesProc(comm().me()))
-  { 
-   for(int i=0; i<3;i++)
-    currParCoord_[i]= dataStorage().getParticle(currentPar_)->getpos()[i];
-  }
-  else
-  {
-   for(int i=0; i<3;i++)
-     currParCoord_[i]=  (mesh().dMin()[comm().me()*3 +i] + mesh().dMax()[comm().me()*3 + i])/2;
-  }
-  
-  int displ[nprocs];
-  int numfrags[nprocs];
-         
-  int sum = 0;
-      
-  for (int i = 0; i < nprocs; ++i) {
-          
-         displ[i] = sum;
-         sum +=3; 
-         numfrags[i]=3; 
-         }
-  timer().stamp(TIME_SELECTOR);
-  timer().stamp();
-  
-  MPI_Barrier(MPI_COMM_WORLD);  
-  MPI_Allgatherv(currParCoord_, numfrags[comm().me()], MPI_DOUBLE,  cellList_, numfrags, displ, MPI_DOUBLE,MPI_COMM_WORLD);
-  
-  timer().stamp(TIME_SELECTOR_MPI);
-  timer().stamp();
-  
-  //The absolute box size for every cell is calculated
-  for(int p=0;p<nprocs;p++)
-  {
-   if(currentPar_ < dataStorage().getNofParticlesProc(p))
-   {
-    for(int j=0;j<3;j++)
-    {
-     max_[3*p+j] = cellList_[3*p+j] + *(selectorContainer().getFilterSize(j));
-     min_[3*p+j] = cellList_[3*p+j] - *(selectorContainer().getFilterSize(j));   
-    }
-   }
-   else
-   {
-    for(int j=0;j<3;j++)
-    {
-     max_[3*p+j] = cellList_[3*p+j];
-     min_[3*p+j] = cellList_[3*p+j];   
-    }  
-   }
-  }
-  timer().stamp(TIME_SELECTOR);
-  
+ //Every processor has to know the coordinates of every current cell
+ if(currentCell_ < mesh().MaxNofCellsProc()[comm().me()])
+ {
+  for(int i=0; i<3;i++)
+   currCellCoord_[i]= *(mesh().CellCentre(currentCell_)[i]);
  }
  else
  {
-  
-  currentCell_= *(selectorContainer().currentCell());
-  
-  double currCellCoord_[3];
-  int nprocs=comm().nprocs();
-  
-  //Every processor has to know the coordinates of every current cell
-  if(currentCell_ < mesh().MaxNofCellsProc()[comm().me()])
-  { 
-   for(int i=0; i<3;i++)
-    currCellCoord_[i]= *(mesh().CellCentre(currentCell_)[i]);
+  for(int i=0; i<3;i++)
+   currCellCoord_[i]=  mesh().dMin()[comm().me()*3 +i] + mesh().dMax()[comm().me()*3 + i]/2;
+ }
+ 
+ int displ[nprocs];
+ int numfrags[nprocs];
+        
+ int sum = 0;
+     
+ for (int i = 0; i < nprocs; ++i) {
+         
+        displ[i] = sum;
+        sum +=3; 
+        numfrags[i]=3; 
+        }
+ 
+ MPI_Barrier(MPI_COMM_WORLD);  
+ MPI_Allgatherv(currCellCoord_, numfrags[comm().me()], MPI_DOUBLE,  cellList_, numfrags, displ, MPI_DOUBLE,MPI_COMM_WORLD);
+ 
+ //The absolute box size for every cell is calculated
+ for(int p=0;p<nprocs;p++)
+ {
+  if(currentCell_ < mesh().MaxNofCellsProc()[p])
+  {
+   for(int j=0;j<3;j++)
+   {
+    max_[3*p+j] = cellList_[3*p+j] + *(selectorContainer().getFilterSize(j));
+    min_[3*p+j] = cellList_[3*p+j] - *(selectorContainer().getFilterSize(j));   
+   }
   }
   else
   {
-   for(int i=0; i<3;i++)
-    currCellCoord_[i]=  mesh().dMin()[comm().me()*3 +i] + mesh().dMax()[comm().me()*3 + i]/2;
-  }
-  
-  int displ[nprocs];
-  int numfrags[nprocs];
-         
-  int sum = 0;
-      
-  for (int i = 0; i < nprocs; ++i) {
-          
-         displ[i] = sum;
-         sum +=3; 
-         numfrags[i]=3; 
-         }
-  timer().stamp(TIME_SELECTOR);
-  timer().stamp();
-  
-  MPI_Barrier(MPI_COMM_WORLD);  
-  MPI_Allgatherv(currCellCoord_, numfrags[comm().me()], MPI_DOUBLE,  cellList_, numfrags, displ, MPI_DOUBLE,MPI_COMM_WORLD);
-  
-  timer().stamp(TIME_SELECTOR_MPI);
-  timer().stamp();
-  
-  //The absolute box size for every cell is calculated
-  for(int p=0;p<nprocs;p++)
-  {
-   if(currentCell_ < mesh().MaxNofCellsProc()[p])
+   for(int j=0;j<3;j++)
    {
-    for(int j=0;j<3;j++)
-    {
-     max_[3*p+j] = cellList_[3*p+j] + *(selectorContainer().getFilterSize(j));
-     min_[3*p+j] = cellList_[3*p+j] - *(selectorContainer().getFilterSize(j));   
-    }
-   }
-   else
-   {
-    for(int j=0;j<3;j++)
-    {
-     max_[3*p+j] = cellList_[3*p+j];
-     min_[3*p+j] = cellList_[3*p+j];   
-    }  
-   }
+    max_[3*p+j] = cellList_[3*p+j];
+    min_[3*p+j] = cellList_[3*p+j];   
+   }  
   }
-  timer().stamp(TIME_SELECTOR);
-  
-  
  }
+ 
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 void SelectorCellUnstruct::boundaryCorrections()
 {
- timer().stamp();
- 
   int nprocs=comm().nprocs();
   for(int p=0; p<nprocs;p++)
    for(int j=0;j<3;j++)
@@ -481,7 +321,6 @@ void SelectorCellUnstruct::boundaryCorrections()
     } 
    }
 
-timer().stamp(TIME_SELECTOR);
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 bool SelectorCellUnstruct::checkPosition(double posA, double max, double min )

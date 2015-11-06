@@ -156,7 +156,6 @@ void c3poMesh::registerDomainInfo(double maxDomain[3],double minDomain[3],double
   local_domain_min[i]=minDomain[i];
  }
  gatherInfo(); 
-
 }
 
 // ------------------------------------------------------------------------

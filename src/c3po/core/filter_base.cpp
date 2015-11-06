@@ -34,7 +34,7 @@ License
 
 #include "selector_container.h"
 #include "filter_base.h"
-#include <string>
+#include "string.h"
 #include "comm.h"
 #include "mesh.h"
 #include "output.h"
@@ -86,9 +86,9 @@ void FilterBase::init(QJsonObject jsonObj) const
     typeRegion_    = jsonObj["CoordSys"].toInt();
     if (jsonObj["CoordSys"].toInt()==0)
     {
-     filtersize_[0] = (jsonObj["x"].toDouble()-c3po_ptr()->meshFilterWidthTolerance())/2; //avoid problems in case filter width matches cell-cell dist.
-     filtersize_[1] = (jsonObj["y"].toDouble()-c3po_ptr()->meshFilterWidthTolerance())/2;
-     filtersize_[2] = (jsonObj["z"].toDouble()-c3po_ptr()->meshFilterWidthTolerance())/2;
+     filtersize_[0] = jsonObj["x"].toDouble()-c3po_ptr()->meshFilterWidthTolerance(); //avoid problems in case filter width matches cell-cell dist.
+     filtersize_[1] = jsonObj["y"].toDouble()-c3po_ptr()->meshFilterWidthTolerance();
+     filtersize_[2] = jsonObj["z"].toDouble()-c3po_ptr()->meshFilterWidthTolerance();
     }
     else if(jsonObj["CoordSys"].toInt()==1)
     {

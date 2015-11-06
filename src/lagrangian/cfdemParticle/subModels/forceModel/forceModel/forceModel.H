@@ -145,7 +145,7 @@ public:
 
         virtual void manipulateScalarField(volScalarField&) const;
 
-        virtual void manipulateScalarField(volScalarField&, int) const;
+        virtual void manipulateScalarField(volScalarField&, volScalarField&, int) const;
 
     // Access
         word modelType(){ return modelType_; };

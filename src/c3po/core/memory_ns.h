@@ -206,7 +206,6 @@ namespace C3PO_MEMORY_NS {
           free(array[0]);
           free(array);
         }
-  
 }
 
 #endif

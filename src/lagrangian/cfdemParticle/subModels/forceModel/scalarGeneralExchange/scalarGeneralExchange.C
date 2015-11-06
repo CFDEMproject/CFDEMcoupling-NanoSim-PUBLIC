@@ -33,6 +33,7 @@ Description
 #include "scalarGeneralExchange.H"
 #include "addToRunTimeSelectionTable.H"
 #include "dataExchangeModel.H"
+#define ALARGECONCENTRATION 1e32
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -85,13 +86,16 @@ scalarGeneralExchange::scalarGeneralExchange
     partDatFlux_(NULL),
     partDatTransCoeff_(NULL),
     partDatFluid_(NULL),
+    partDatTmpExpl_(NULL),
+    partDatTmpImpl_(NULL),
     validPartFlux_(false),
     validPartTransCoeff_(false),
     validPartFluid_(false),
+    haveTemperatureEqn_(false),
     useLiMason_(false),
     lambda_(readScalar(propsDict_.lookup("lambda"))),
-    Cp_(readScalar(propsDict_.lookup("Cp"))),
-    speciesFieldNames_( generalPropsDict_.lookup("eulerianFields")), 
+    Prandtl_(readScalar(propsDict_.lookup("Prandtl"))),
+    eulerianFieldNames_( generalPropsDict_.lookup("eulerianFields")), 
     partSpeciesNames_(propsDict_.lookup("partSpeciesNames")),                       
     partSpeciesFluxNames_(propsDict_.lookup("partSpeciesFluxNames")),
     partSpeciesTransCoeffNames_(propsDict_.lookup("partSpeciesTransCoeffNames")),
@@ -100,7 +104,7 @@ scalarGeneralExchange::scalarGeneralExchange
     maxSource_(1e30),
     scaleDia_(1.)
 {
-    allocateMyArrays();
+    allocateMyArrays(0.0);
 
     if (propsDict_.found("maxSource"))
     {
@@ -159,8 +163,69 @@ scalarGeneralExchange::scalarGeneralExchange
     if (propsDict_.found("scale"))
         scaleDia_=scalar(readScalar(propsDict_.lookup("scale")));
 
+    //check species names
+    Info << "scalarGeneralExchange found the following eulerianFieldName: " << eulerianFieldNames_ << endl;
+    int numTempEqn=0;
+    for(int iEul=0;iEul<eulerianFieldNames_.size(); iEul++)
+        if(eulerianFieldNames_[iEul]==tempFieldName_)
+        {
+            haveTemperatureEqn_ = true;
+            numTempEqn = 1;
+            Info << "scalarGeneralExchange identified the eulerianField '" << tempFieldName_ 
+                 << "' as being the temperature field" << endl;
+        }
 
-    Info << "scalarGeneralExchange found the following speciesFieldNames: " << speciesFieldNames_ << endl;
+    //check if enough particle properties have been provided
+    if(partSpeciesNames_.size()!=(eulerianFieldNames_.size()-numTempEqn))   
+        FatalError <<"Not enough partSpeciesNames specified in the couplingProperties file. \n" 
+                   << abort(FatalError);
+    else
+        Info << "Found valid partSpeciesNames: " << partSpeciesNames_ << endl;
+    if(partSpeciesFluxNames_.size()!=(eulerianFieldNames_.size()-numTempEqn))   
+        FatalError <<"Not enough partSpeciesFluxNames specified in the couplingProperties file. \n" 
+                   << abort(FatalError);
+    else
+        Info << "Found valid partSpeciesFluxNames: " << partSpeciesFluxNames_ << endl;
+    if(partSpeciesTransCoeffNames_.size()!=(eulerianFieldNames_.size()-numTempEqn))   
+        FatalError <<"Not enough partSpeciesTransCoeffNames specified in the couplingProperties file. \n" 
+                   << abort(FatalError);
+    else
+        Info << "Found valid partSpeciesTransCoeffNames: " << partSpeciesTransCoeffNames_ << endl;
+    if(partSpeciesFluidNames_.size()!=(eulerianFieldNames_.size()-numTempEqn))   
+        FatalError <<"Not enough partSpeciesFluidNames specified in the couplingProperties file. \n" 
+                   << abort(FatalError);
+    else
+        Info << "Found valid partSpeciesFluidNames: " << partSpeciesFluidNames_ << endl;
+    if(DMolecular_.size()!=(eulerianFieldNames_.size()-numTempEqn))   
+        FatalError <<"Not enough DMolecular specified in the couplingProperties file. \n" 
+                   << abort(FatalError);
+
+    for(int iPart=0;iPart<partSpeciesNames_.size(); iPart++)
+    {
+        if(partSpeciesNames_[iPart]=="none")
+            particleSpeciesValue_.append(-1);    //will not consider this species for coupling
+        else if(partSpeciesNames_[iPart]=="zero")
+            particleSpeciesValue_.append(0.0);   //will not consider this species for coupling
+        else
+        {
+            particleSpeciesValue_.append(2*ALARGECONCENTRATION);    //set to a very large value to request pull
+        }
+    }
+
+    if(nrForceSubModels()>1)
+        FatalError <<"nrForceSubModels() must be zero or one for scalarGeneralExchange. \n" 
+                   << abort(FatalError);
+
+    if (probeIt_ && propsDict_.found("suppressProbe"))
+        probeIt_=!Switch(propsDict_.lookup("suppressProbe"));
+    if(probeIt_)
+    {
+        particleCloud_.probeM().initialize(typeName, "scalarGeneralExchange.logDat");
+        particleCloud_.probeM().vectorFields_.append("Urel");               //first entry must the be the vector to probe
+        particleCloud_.probeM().scalarFields_.append("Rep");                //other are debug
+        particleCloud_.probeM().scalarFields_.append("Nu");                 //other are debug
+        particleCloud_.probeM().writeHeader();
+    }
 }
 
 
@@ -170,6 +235,8 @@ scalarGeneralExchange::~scalarGeneralExchange()
 {
     delete partDat_;
     delete partDatFlux_;
+    delete partDatTmpExpl_;
+    delete partDatTmpImpl_;
 
     if(validPartTransCoeff_)
        delete partDatTransCoeff_;
@@ -180,12 +247,13 @@ scalarGeneralExchange::~scalarGeneralExchange()
 }
 
 // * * * * * * * * * * * * * * * private Member Functions  * * * * * * * * * * * * * //
-void scalarGeneralExchange::allocateMyArrays() const
+void scalarGeneralExchange::allocateMyArrays(scalar initVal) const
 {
     // Heat - get memory for 2d arrays
-    double initVal=0.0;
     particleCloud_.dataExchangeM().allocateArray(partDat_,initVal,1);  // field/initVal/with/lenghtFromLigghts
     particleCloud_.dataExchangeM().allocateArray(partDatFlux_,initVal,1);
+    particleCloud_.dataExchangeM().allocateArray(partDatTmpExpl_,initVal,1);
+    particleCloud_.dataExchangeM().allocateArray(partDatTmpImpl_,initVal,1);
 
     if(validPartTransCoeff_)
         particleCloud_.dataExchangeM().allocateArray(partDatTransCoeff_,initVal,1);    
@@ -200,8 +268,18 @@ void scalarGeneralExchange::setForce() const
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-void scalarGeneralExchange::manipulateScalarField(volScalarField& EuField, int speciesID) const
+void scalarGeneralExchange::manipulateScalarField(volScalarField& explicitEulerSource,
+                                                  volScalarField& implicitEulerSource,
+                                                  int speciesID) const
 {
+
+    // reset Scalar field
+    explicitEulerSource.internalField() = 0.0;
+    implicitEulerSource.internalField() = 0.0;
+
+    if(speciesID>=0 && particleSpeciesValue_[speciesID]<0.0)    //skip if species is not active
+        return;
+
     //Set the names of the exchange fields
     word    fieldName;
     word    partDatName;
@@ -209,7 +287,11 @@ void scalarGeneralExchange::manipulateScalarField(volScalarField& EuField, int s
     word    partTransCoeffName;
     word    partFluidName;
     scalar  transportParameter;
-    if(speciesID<0) //have temperature
+
+    // realloc the arrays to pull particle data
+
+
+    if(speciesID<0) //this is the temperature - always pull from LIGGGHTS
     {
         fieldName          = tempFieldName_;
         partDatName        = partTempName_;
@@ -217,15 +299,30 @@ void scalarGeneralExchange::manipulateScalarField(volScalarField& EuField, int s
         partTransCoeffName = partHeatTransCoeffName_;
         partFluidName      = partHeatFluidName_;
         transportParameter = lambda_;
+
+        allocateMyArrays(0.0);
+        particleCloud_.dataExchangeM().getData(partDatName,"scalar-atom", partDat_);
     }
     else
     {
-        fieldName          = speciesFieldNames_[speciesID];
+        fieldName          = eulerianFieldNames_[speciesID];
         partDatName        = partSpeciesNames_[speciesID];
         partFluxName       = partSpeciesFluxNames_[speciesID]; 
         partTransCoeffName = partSpeciesTransCoeffNames_[speciesID]; 
         partFluidName      = partSpeciesFluidNames_[speciesID]; 
         transportParameter = DMolecular_[speciesID];
+
+        allocateMyArrays(0.0);
+        if(particleSpeciesValue_[speciesID]>ALARGECONCENTRATION)   
+            particleCloud_.dataExchangeM().getData(partDatName,"scalar-atom", partDat_);
+    }
+
+    if (scaleDia_ > 1)
+        Info << typeName << " using scale = " << scaleDia_ << endl;
+    else if (particleCloud_.cg() > 1)
+    {
+        scaleDia_=particleCloud_.cg();
+        Info << typeName << " using scale from liggghts cg = " << scaleDia_ << endl;
     }
 
     //==============================
@@ -233,26 +330,8 @@ void scalarGeneralExchange::manipulateScalarField(volScalarField& EuField, int s
     const volScalarField& voidfraction_(particleCloud_.mesh().lookupObject<volScalarField> (voidfractionFieldName_));    // ref to voidfraction field
     const volVectorField& U_(particleCloud_.mesh().lookupObject<volVectorField> (velFieldName_));
     const volScalarField& fluidScalarField_(particleCloud_.mesh().lookupObject<volScalarField> (fieldName));            // ref to scalar field
-    //==============================
-
-    if (scaleDia_ > 1)
-        Info << typeName << " using scale = " << scaleDia_ << endl;
-    else if (particleCloud_.cg() > 1){
-        scaleDia_=particleCloud_.cg();
-        Info << typeName << " using scale from liggghts cg = " << scaleDia_ << endl;
-    }
-
-    // realloc the arrays
-    allocateMyArrays();
-
-    // reset Scalar field
-    EuField.internalField() = 0.0;
-
-    // get particle data
-    particleCloud_.dataExchangeM().getData(partDatName,"scalar-atom", partDat_);
-
     const volScalarField& nufField = forceSubM(0).nuField();
-    const volScalarField& rhoField = forceSubM(0).rhoField();
+    //==============================
 
     // calc La based heat flux
     vector position(0,0,0);
@@ -261,6 +340,7 @@ void scalarGeneralExchange::manipulateScalarField(volScalarField& EuField, int s
     scalar fluidValue(0);
     label  cellI=0;
     vector Us(0,0,0);
+    vector Ur(0,0,0);
     scalar dscaled(0);
     scalar nuf(0);
     scalar magUr(0);
@@ -273,6 +353,8 @@ void scalarGeneralExchange::manipulateScalarField(volScalarField& EuField, int s
     interpolationCellPoint<scalar> voidfractionInterpolator_(voidfraction_);
     interpolationCellPoint<vector> UInterpolator_(U_);
     interpolationCellPoint<scalar> fluidScalarFieldInterpolator_(fluidScalarField_);
+
+    #include "setupProbeModel.H"
 
     for(int index = 0;index < particleCloud_.numberOfParticles(); ++index)
     {
@@ -288,27 +370,40 @@ void scalarGeneralExchange::manipulateScalarField(volScalarField& EuField, int s
                 }else
                 {
 					voidfraction = voidfraction_[cellI];
-                    Ufluid = U_[cellI];
-                    fluidValue = fluidScalarField_[cellI];
+                    Ufluid       = U_[cellI];
+                    fluidValue   = fluidScalarField_[cellI];
                 }
 
                 // calc relative velocity
                 Us      = particleCloud_.velocity(index);
-                magUr   = mag(Ufluid-Us);
+                Ur      = Ufluid-Us;
+                magUr   = mag(Ur);
                 dscaled = 2*particleCloud_.radius(index)/scaleDia_;
                 As      = dscaled*dscaled*M_PI*sDth;
                 nuf     = nufField[cellI];
                 Rep     = dscaled*magUr/nuf;
                 if(speciesID<0) //have temperature
-                    Pr      = max(SMALL,Cp_*nuf*rhoField[cellI]/transportParameter); 
+                    Pr      = Prandtl_; 
                 else
                     Pr      = max(SMALL,nuf/transportParameter); //This is Sc for species
 
                 scalar alpha = transportParameter*(this->*Nusselt)(Rep,Pr,voidfraction)/(dscaled);
 
                 // calc convective heat flux [W]
-                scalar tmpPartFlux     = alpha * As * (fluidValue - partDat_[index][0]);
+                scalar areaTimesTransferCoefficient = alpha * As;
+                scalar tmpPartFlux     =  areaTimesTransferCoefficient 
+                                       * (fluidValue - partDat_[index][0]);
                 partDatFlux_[index][0] = tmpPartFlux;
+
+                // split implicit/explicit contribution
+                forceSubM(0).explicitCorrScalar( partDatTmpImpl_[index][0], 
+                                                 partDatTmpExpl_[index][0],
+                                                 areaTimesTransferCoefficient,
+                                                 fluidValue,
+                                                 fluidScalarField_[cellI],
+                                                 partDat_[index][0],
+                                                 forceSubM(0).verbose()
+                                               );
 
                 if(validPartTransCoeff_)
                     partDatTransCoeff_[index][0] = alpha;
@@ -319,6 +414,8 @@ void scalarGeneralExchange::manipulateScalarField(volScalarField& EuField, int s
 
                 if( forceSubM(0).verbose())
                 {
+                    Pout << "fieldName = " << fieldName << endl;
+                    Pout << "partTransCoeffName = " << partTransCoeffName << endl;
                     Pout << "index    = " <<index << endl;
                     Pout << "partFlux = " << tmpPartFlux << endl;
                     Pout << "magUr = " << magUr << endl;
@@ -329,47 +426,66 @@ void scalarGeneralExchange::manipulateScalarField(volScalarField& EuField, int s
                     Pout << "Rep = " << Rep << endl;
                     Pout << "Pr/Sc = " << Pr << endl;
                     Pout << "Nup/Shp = " << (this->*Nusselt)(Rep,Pr,voidfraction) << endl;
+                    Pout << "partDatTransCoeff: " <<  partDatTransCoeff_[index][0] << endl;
                     Pout << "voidfraction = " << voidfraction << endl;
                     Pout << "partDat_[index][0] = " << partDat_[index][0] << endl  ;
                     Pout << "fluidValue = " << fluidValue << endl  ;
                 }
+                
+                //Set value fields and write the probe
+                if(probeIt_)
+                {
+                    #include "setupProbeModelfields.H"
+                    vValues.append(Ur);                
+                    sValues.append((this->*Nusselt)(Rep,Pr,voidfraction));
+                    sValues.append(Rep);
+                    particleCloud_.probeM().writeProbe(index, sValues, vValues);
+                }
             }
     }
 
+    //Handle explicit and implicit source terms on the Euler side
+    //these are simple summations!
     particleCloud_.averagingM().setScalarSum
     (
-        EuField,
-        partDatFlux_,
+        explicitEulerSource,
+        partDatTmpExpl_,
         particleCloud_.particleWeights(),
         NULL
     );
 
-    // scale with -1/(Vcell*rho*Cp) to give the source for the temperature field
-    if(speciesID<0) //have temperature
-        EuField.internalField() /= -rhoField.internalField()*Cp_*EuField.mesh().V();
-    else
-        EuField.internalField() /= -EuField.mesh().V();
+    particleCloud_.averagingM().setScalarSum
+    (
+        implicitEulerSource,
+        partDatTmpImpl_,
+        particleCloud_.particleWeights(),
+        NULL
+    );
 
-    // limit source term
-    scalar EuFieldInCell;
-    forAll(EuField,cellI)
+    // scale with the cell volume to get (total) volume-specific source 
+    explicitEulerSource.internalField() /= -explicitEulerSource.mesh().V();
+    implicitEulerSource.internalField() /= -implicitEulerSource.mesh().V();
+
+    // limit explicit source term
+    scalar explicitEulerSourceInCell;
+    forAll(explicitEulerSource,cellI)
     {
-        EuFieldInCell = EuField[cellI];
+        explicitEulerSourceInCell = explicitEulerSource[cellI];
 
-        if(mag(EuFieldInCell) > maxSource_ )
+        if(mag(explicitEulerSourceInCell) > maxSource_ )
         {
-             EuField[cellI] = sign(EuFieldInCell) * maxSource_;
+             explicitEulerSource[cellI] = sign(explicitEulerSourceInCell) * maxSource_;
         }
     }
 
     if(speciesID<0) //have temperature
         Info << "total convective particle-fluid heat flux [W] (Eulerian) = " 
-             << gSum(EuField*rhoField*Cp_*EuField.mesh().V()) 
+             << gSum((explicitEulerSource+implicitEulerSource*fluidScalarField_)*explicitEulerSource.mesh().V()) 
              << endl;
     else
         Info << "speciesID: " << speciesID 
              << ": total convective particle-fluid species flux [kmol/s] (Eulerian) = " 
-             << gSum(EuField*1.0*EuField.mesh().V()) 
+             << gSum((explicitEulerSource+implicitEulerSource*fluidScalarField_)*explicitEulerSource.mesh().V()) 
              << endl;
 
     // give DEM data
