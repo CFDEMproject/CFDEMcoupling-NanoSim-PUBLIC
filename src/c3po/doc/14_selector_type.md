@@ -9,12 +9,16 @@ The _selector command type_ defines selector objects in CPPPO. At the moment the
 
 * _filter_
 
+* _cellRegion_
+
 A command with the _cellIJK_ specifier represents a cell selector based on IJK indexing. A command with the _cellUnstruct_ specifier represents a cell selector based on unstructured mesh. There are significant differences and
 usages between the twos:
 
 * A _cellIJK_ selector is based on the assumption that all the cells are equal (same volumes, same lengths) and hexahedrals. Furthermore, the domain is hexahedral itself. If this is the case, any cell can be identifyed using an IJK notation. This results in a fast algorithms because, if a particular region in the domain is given, the number and ids of the cells inside that region are calculated using simple relations.
 
 * A _cellUnstruct_ selector does not pose any limitation on the shape and lenghts of cells and domain. The only drawback of this selector is the speed which is lower compared to the _cellIJK_ selector when the filtersize is small. 
+
+* A _cellRegion_ selector enables the user to analyze irregular region within the computational domain. The mesh must use IJK organized cells. The region will be typically selected based on an unfiltered scalar field (e.g., the voidfraction field) and a threshold value. The only drawback of this selector is the speed, since a thresholding is required. The user can decide, however, if the regions are identified every time step, or just once (i.e., based on the first time step). Also, currently this feature is limited to single-core runs.
 
 Both these selectors require the domain to be properly decomposed. Sub-domains can have any shape (if the _cellUnstruct_ seector is used) but the hexahedrals built using maxima and minima of every subdomain should not overlap. In other words, processor-processor boundaries should be perpendicular or parallel to the main axes. 
 
@@ -31,7 +35,10 @@ Syntax
                      "CoordSys": 0, 
                      "x":  1.0 , 
                      "y":  1.0 ,
-                     "z":  1.0 
+                     "z":  1.0 ,
+                     "selective":true,
+                     "max":[10.5,  8.2,  5.3],
+                     "min":[  -1,    4,  0.8]
                   },
 ...
 
@@ -52,6 +59,11 @@ In the case of a cartesian coordinate system, three more entries are required:
 In the case of a spherical coordinate system, one more entry is required:
 
 *  "r": requires a double value. This entry specifies the spatial extension of the filter into the radial direction.
+
+In addition, it is possible to just filter a box region out of the whole domain. In order to do that, three other entries must be added:
+* "selective": requires a bool. If set to _true_ just a section of the domain will be filtered. 
+* "max": requires an array of double values. The maximum box size.
+* "min": requires an array of double values. The minimum box size.
 
 For every _filter_ it is necessary to have a corresponding _cellIJK_ (or _cellUnstruct_) specifier. The corresponding _cellIJK_ (or _cellUnstruct_) specifier is selected based on the ordering in the `c3po.input` script. 
 
@@ -90,7 +102,10 @@ While in the `c3po.json` file:
                      "CoordSys": 0, 
                      "x":  2.0 , 
                      "y":  1.0 ,
-                     "z":  3.0 
+                     "z":  3.0,
+                     "selective":true,
+                     "max":[10.5,  8.2,  5.3],
+                     "min":[  -1,    4,  0.8] 
                   },
 ...
 ```

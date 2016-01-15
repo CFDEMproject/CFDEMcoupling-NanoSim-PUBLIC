@@ -169,9 +169,9 @@ void AngleVecVec::angleVecVec()
   
    Umod_= ( U[0]*U[0] + U[1]*U[1] +U[2]*U[2] );
   
-   if(abs(Umod_)<1e-15) return;
+   if(std::fabs(Umod_)<1e-15) return;
   
-   angle_ = acos(  abs( ( V[0]*U[0] + V[1]*U[1] + V[2]*U[2])
+   angle_ = acos(  std::fabs( ( V[0]*U[0] + V[1]*U[1] + V[2]*U[2])
   
                 / sqrt( ( V[0]*V[0] + V[1]*V[1] +V[2]*V[2] ) * Umod_ ) )  
                   
@@ -211,6 +211,8 @@ void AngleVecVec::angleVecForce()
 
 //if(save2Bin_)
   //operationContainer().bin(operationID_)->automaticBinCount(3);
+  
+  if(lagrangian_) dataStorage().setProbes(probesName_);
 
   int NofParticles_=dataStorage().numOfParticles();
  
@@ -234,9 +236,9 @@ void AngleVecVec::angleVecForce()
   
    Umod_=( (U[0]-V[0])*(U[0]-V[0]) +(U[1]-V[1])*(U[1]-V[1]) +(U[2]-V[2])*(U[2]-V[2]) );
   
-   if(abs(Umod_)<1e-15) return;
+   if(std::fabs(Umod_)<1e-15) return;
   
-   angle_ = acos(  abs( ( force_[0]*(U[0]-V[0]) + force_[1]*(U[1]-V[1]) + force_[2]*(U[2]-V[2]))
+   angle_ = acos(  std::fabs( ( force_[0]*(U[0]-V[0]) + force_[1]*(U[1]-V[1]) + force_[2]*(U[2]-V[2]))
   
                 / sqrt( ( force_[0]*force_[0] + force_[1]*force_[1] +force_[2]*force_[2] ) *  Umod_ )   )   
                   

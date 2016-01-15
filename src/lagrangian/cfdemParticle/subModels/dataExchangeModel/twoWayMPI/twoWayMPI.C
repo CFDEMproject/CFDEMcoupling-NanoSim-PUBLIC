@@ -236,21 +236,6 @@ void Foam::twoWayMPI::destroy(int** array,int len) const
 
     free(array);
 }
-//============
-// int *
-void Foam::twoWayMPI::destroy(int* array) const
-{
-    if (array == NULL) return;
-    free(array);
-}
-//============
-// double *
-void Foam::twoWayMPI::destroy(double* array) const
-{
-    if (array == NULL) return;
-    free(array);
-}
-//============
 
 bool Foam::twoWayMPI::couple(int i) const
 {

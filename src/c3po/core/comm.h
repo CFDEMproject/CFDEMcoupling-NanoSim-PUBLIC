@@ -90,8 +90,8 @@ class Comm : public c3poBase, public c3poBaseInterface
       
       inline void barrier() const {MPI_Barrier(world_);};
       
-      MPI::Win* goRMA(double*) const;
-      MPI::Win* goRMA(int*) const;
+   //   MPI::Win* goRMA(double*) const;
+   //   MPI::Win* goRMA(int*) const;
 
       void abort_one() const;
       void finalize_all() const;

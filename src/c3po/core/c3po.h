@@ -44,7 +44,8 @@ Description
 #include "stdio.h"
 #include "mpi.h"
 #include <vector>
-
+#include <string>
+#include <iostream>
 namespace C3PO_NS
 {
 
@@ -71,16 +72,17 @@ class c3po
   // ***** CODE FRAMEWORK **************
 
   // Core Classes
-  class Timer              *timer_;
-  class Control       *control_;    // controller for stand-alone usage
-  class Comm          *comm_;       // inter-processor communication
-  class Input         *input_;      // input to simulation - input script processing
-  class Output        *output_;     // simulation output
-  class Error         *error_;      // error handling
-  class OperationContainer *operationContainer_; // container for filtering/sampling/binning operations
-  class SelectorContainer  *selectorContainer_;  // container for selection of cell and particle IDs
-  class DataStorage   *dataStorageInternal_;   // storage for particle data, hosts several containers
-  class c3poMesh            *mesh_;   // mesh data
+  class Timer               *timer_;
+  class Control             *control_;    // controller for stand-alone usage
+  class Comm                *comm_;       // inter-processor communication
+  class Input               *input_;      // input to simulation - input script processing
+  class Output              *output_;     // simulation output
+  class Error               *error_;      // error handling
+  class OperationContainer  *operationContainer_; // container for filtering/sampling/binning operations
+  class SelectorContainer   *selectorContainer_;  // container for selection of cell and particle IDs
+  class DataStorage         *dataStorageInternal_;   // storage for particle data, hosts several containers
+  class c3poMesh            *mesh_;             // mesh data
+  class multiphaseFlowBasic *basicMultiphaseQty_;    // class holding reference quantities and functions (e.g., for drag)
 
   // ***** END CODE FRAMEWORK **************
     
@@ -102,7 +104,7 @@ class c3po
 
     void   flush() const;  //general handle to flush/clear/clean all operation containers
 
-    //TODO: return the instructions for sampling in a cleaner way
+    
     int    sampleCount(int id) ;     
     double sampleDelta(int id) ; 
 
@@ -136,7 +138,7 @@ class c3po
     double cellSizefromJson(int i) const;
     
     
-    void addParticle(double m,double* pos,double* vel,std::vector< double*>* force, double* torque = NULL);
+    void addParticle(std::string groupName_,double m,double* pos,double* vel,std::vector< double*>* force, double* torque = NULL);
     void deleteParticles();
     
     const char* getOpFilterName(int id); 
@@ -166,6 +168,8 @@ class c3po
     
     void preRunOperations() const;
     
+    void postRunOperations() const;
+    
     int getDomainDecomposition() const;
     
     bool writeFields() const;
@@ -174,7 +178,16 @@ class c3po
     
     void checkIJK(bool struct_)   const;
     
-    void clearMesh() const;  
+    void clearMesh() const; 
+    
+    bool registerCFDEMparticles() const; 
+    
+    std::vector<std::string> getGradientScalarList() const;
+    
+    std::vector<std::string> getGradientVectorList() const;
+    
+    std::vector<std::string> getShearRateList() const;
+    
     
 };
 

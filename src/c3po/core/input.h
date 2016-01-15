@@ -116,8 +116,17 @@ class Input : public c3poBase, public c3poBaseInterface, public InputBase
     bool writeInterface() const;
     
     void csv_columnsToRead( int *columns) const;   
+    
+    void readParticles(std::vector<double>* positions_, std::string probesName) const;
   
-   
+    bool registerCFDEMparticles() const;
+    
+    std::vector<std::string> getGradientScalarList() const {return SF_grad;};
+
+    std::vector<std::string> getGradientVectorList() const {return VF_grad;};
+    
+    std::vector<std::string> getShearRateList() const {return shearRates_;};
+ 
     private:
 
      // istream infile_; 
@@ -129,6 +138,8 @@ class Input : public c3poBase, public c3poBaseInterface, public InputBase
       mutable QJsonObject    mainObj_;
 
       mutable QJsonObject    meshMainSettings_;
+      
+      
 
       mutable QString        myName;
 
@@ -143,10 +154,18 @@ class Input : public c3poBase, public c3poBaseInterface, public InputBase
       mutable bool storageWriteFields_;
       mutable bool storageWriteParticles_;
       
-      mutable std::vector< std::string>  VF_names; //names of the vector fields
+      mutable std::vector< std::string>  VF_names; //names of the std::vector fields
       mutable std::vector< std::string>  SF_names; //names of the scalar fields
       
+      mutable std::vector< std::string>  VF_grad; //names of the gradient vector fields
+      mutable std::vector< std::string>  SF_grad; //names of the gradient scalar fields
+      
+      mutable std::vector< std::string>  shearRates_;
+      
+      
       void readBCfromJson() const;
+      
+      
       
 
 };

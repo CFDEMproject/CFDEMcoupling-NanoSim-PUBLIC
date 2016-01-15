@@ -6,8 +6,8 @@ clc;
 % simulation data 1
 %====================================%
 rhoG = 10			% density in kg/m3
-%path = '../probes/0/p'; % 2.1.x
-path = '../postProcessing/probes/0/p'; % 2.2.x
+%path = '../probes/0/p'; % ext32
+path = '../postProcessing/probes/0/p';
 
 %- nomenclature before 2.4.x
 %columns=22;
@@ -24,8 +24,8 @@ t_sim = data(:,1);
 %====================================%
 % simulation data 2
 %====================================%
-%path = '../probes/0.05/p'; % 2.1.x
-path = '../postProcessing/probes/0.05/p'; % 2.2.x
+%path = '../probes/0.05/p'; % ext32
+path = '../postProcessing/probes/0.05/p';
 
 %- nomenclature before 2.4.x
 %columns=22;

@@ -97,6 +97,8 @@ public:
 
     // Member Functions
         void setvoidFraction(double** const& ,double**&, double**&, double**&, double**&) const;
+
+        virtual double particleRadius(label) const;
 };
 
 

@@ -70,7 +70,8 @@ Name_(name),
 lagrangian_(false),
 binOp_(-1),
 execFormula_(false),
-NofMarkers_(1)
+NofMarkers_(1),
+normalizeSample_(false)
 {
 
     overwrite_ = true;
@@ -92,16 +93,34 @@ OperationSampling::~OperationSampling()
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 void OperationSampling::middle_of_step()
 {
- if(!execFormula_)
-  return;
-  
- std::vector<double> newsample_;
- formula_->evaluate(&samples_,&newsample_);
- 
- for(int i=0;i<int(newsample_.size());i++)
-  insertSample( newsample_[i],samplesX1_[0][0][i],samples_.size()-1); 
- 
- 
+
+ if(execFormula_)
+ {
+
+    //compute and normalize new samples  
+     std::vector<double> newsample_;
+     std::vector< std::vector<double> > newmarkers_;
+     for(int marker_=0;marker_<NofMarkers_;marker_++)
+     {
+      std::vector<double> tmp_;
+      newmarkers_.push_back(tmp_);
+     }
+     
+     formula_->evaluate(&samples_,&samplesX1_,&newsample_,&newmarkers_);
+
+     for(int i=0;i<int(newsample_.size());i++)
+       for(int marker_=0;marker_<NofMarkers_;marker_++)
+        insertSample( newsample_[i],newmarkers_[marker_][i],samples_.size()-1,marker_); 
+
+ }
+ //perform normalization if necessary
+ /*if(normalizeSample_)
+ {
+    formula_->normalize(&samples_, &samplesX1_);    
+    if(input().verbose())
+        output().write_screen_one("\nCPPPO normalized all your samples! ");
+ }
+ */
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 void OperationSampling::end_of_step()
@@ -117,15 +136,52 @@ void OperationSampling::end_of_step()
 void OperationSampling::init(QJsonObject jsonObj) 
 {
   if(jsonObj["lagrangian"].toBool()) lagrangian_=true;
+  
+  if(lagrangian_)
+  {
+   if(jsonObj["probesName"].isNull())
+   error().throw_error_one(FLERR,"\nYou should specify a \"probesName\" for every \"lagrangian\" sampling operation");
+   
+   QString qsV=jsonObj["probesName"].toString();
+   probesName_ =qsV.toUtf8().constData();
+  }
 
    sampleCount_ = jsonObj["sampleCount"].toInt();
    sampleDelta_ = jsonObj["sampleDelta"].toDouble();
-   overwrite_   = jsonObj["overwrite"].toBool();
+   overwrite_   = jsonObj["overwrite"].toBool();  
    
    if( !jsonObj["Formula"].isNull() )
    {
     execFormula_=true;
-    formula_= new Formula(jsonObj["Formula"].toString().toUtf8().constData());
+    if( !jsonObj["NormalizeFormula"].isNull() )
+    {
+     QJsonObject normalObj_ =  jsonObj["NormalizeFormula"].toObject(); 
+     formula_= new Formula(jsonObj["Formula"].toString().toUtf8().constData(),normalObj_["Normalization"].toString().toUtf8().constData());
+      normalizeSample_  = true;
+     formula_->setMultBasicObject( &(basicMultiphaseQty()) );
+	 
+      
+	   double referenceDp = normalObj_["dp"].toDouble();
+	   double referenceRhoP = normalObj_["RhoP"].toDouble();
+	   double referenceg = normalObj_["g"].toDouble();
+	   double referenceetaf = normalObj_["etaFluid"].toDouble();
+	   double referencerhof = normalObj_["rhoFluid"].toDouble();
+	   int    dragLaw    = normalObj_["dragLaw"].toInt();
+
+     basicMultiphaseQty().setupSettling(referenceDp, 
+                                        referenceRhoP, 
+                                        referenceg, 
+                                        referenceetaf, 
+                                        referencerhof, 
+                                        dragLaw
+                                       );
+    
+    }
+    else
+    {
+     formula_= new Formula(jsonObj["Formula"].toString().toUtf8().constData());
+     
+    }
     
     if(input().verbose())
     {
@@ -134,12 +190,13 @@ void OperationSampling::init(QJsonObject jsonObj)
     }
    }
    
+ 
   
    process_input(jsonObj);
-
-   if(execFormula_)
-       formula_->interpretFormula(VFtoSample_.size(),SFtoSample_.size());
    
+   if(execFormula_)
+    formula_->interpretFormula(VFtoSample_.size(),SFtoSample_.size());
+  
    //One Sample vector is the default setting
    createSampleVectors(1,0,0);
 
@@ -239,6 +296,9 @@ void OperationSampling::registerInputFields(std::string samplesVF, std::string s
         }
   }
   
+  if(execFormula_)
+   formula_->setMaxNumberOfFields( markers_.size(), SFtoSample_.size(),VFtoSample_.size());
+  
 }
 
 
@@ -273,7 +333,7 @@ void OperationSampling::createSampleVectors(unsigned int nOfVectors,unsigned int
     
      samplesSkip_.push_back(false);
      std::string strA="vec";
-     ostringstream Str;
+     std::ostringstream Str;
      Str << vecCounter;
      strA.append(Str.str());
      samplesNames_.push_back(strA);
@@ -291,7 +351,7 @@ void OperationSampling::createSampleVectors(unsigned int nOfVectors,unsigned int
     
      samplesSkip_.push_back(false);
      std::string strA="scalar";
-     ostringstream Str;
+     std::ostringstream Str;
      Str << scalarCounter;
      strA.append(Str.str());
      samplesNames_.push_back(strA);
@@ -309,7 +369,7 @@ void OperationSampling::createSampleVectors(unsigned int nOfVectors,unsigned int
     
      samplesSkip_.push_back(false);
      std::string strA="formula";
-     ostringstream Str;
+     std::ostringstream Str;
      Str << formulaCounter;
      strA.append(Str.str());
      samplesNames_.push_back(strA);

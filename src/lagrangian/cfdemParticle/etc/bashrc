@@ -54,6 +54,11 @@ export CFDEM_LIB_NAME=lagrangianCFDEM-$CFDEM_VERSION-$WM_PROJECT_VERSION
 export CFDEM_LIB_COMP_NAME=lagrangianCFDEMcomp-$CFDEM_VERSION-$WM_PROJECT_VERSION
 
 #check if additional libraries should be compiled together with solvers
+if [[ $CFDEM_ADD_LIBS_NAME == "" ]]; then
+    export CFDEM_ADD_LIBS_NAME=additionalLibs
+else
+    echo "using CFDEM_ADD_LIBS_NAME=$CFDEM_ADD_LIBS_NAME defined by user."
+fi
 if [[ $CFDEM_ADD_LIBS_DIR == "" ]]; then
     export CFDEM_ADD_LIBS_DIR=$CFDEM_SRC_DIR/lagrangian/cfdemParticle/etc
 else

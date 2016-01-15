@@ -1,3 +1,4 @@
+#!/bin/sh
 #----------------------------------*-sh-*--------------------------------------
 # CPPPO
 # Stefan Radl
@@ -55,7 +56,7 @@ alias c3poComp='bash $C3PO_SRC_DIR/compileMe'
 
 #Additional libs required for Compilation of CPPPO
 if [[ $C3PO_ADD_LIBS_DIR == "" ]]; then
-    export C3PO_ADD_LIBS_DIR=$CFDEM_SRC_DIR/lagrangian/cfdemParticle/etc
+    export C3PO_ADD_LIBS_DIR=$CFDEM_ADD_LIBS_DIR
 else
     echo "using C3PO_ADD_LIBS_DIR=$C3PO_ADD_LIBS_DIR defined by user."
 fi

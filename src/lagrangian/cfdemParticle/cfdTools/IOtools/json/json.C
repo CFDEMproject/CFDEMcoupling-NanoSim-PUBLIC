@@ -254,7 +254,7 @@ fileName_(_file)
     {
         char buf[128];
         sprintf(buf,"mkdir %s",dirName_.c_str());
-        int e = system(buf);
+        system(buf);
     }
     sPtr = new OFstream(dirName_ + "/" + fileName_);
     mainObject.setIndent(2);
@@ -382,7 +382,7 @@ void jsonFile::write()
     {
         char buf[128];
         sprintf(buf,"rm %s",fileName_.c_str());
-        int e = system(buf);
+        system(buf);
     }
 
     setFileName(fileName_);

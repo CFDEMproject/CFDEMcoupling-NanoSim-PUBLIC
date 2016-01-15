@@ -34,7 +34,7 @@ License
 /*-----------------------------------------------------------------------------------
 Description
      Main class to manage references to lagrangian and eulerian data. It contains
-     vectors of filteredField and Particle objects. 
+     std::vectors of filteredField and Particle objects. 
 -----------------------------------------------------------------------------------*/
 
 
@@ -48,7 +48,8 @@ Description
 #include "filtered_fields.h"
 #include "qjson_includes.h"
 #include "particle.h"
-
+#include "probeStorage.h"
+#include "region.h"
 
 
 using std::vector;
@@ -63,23 +64,8 @@ class DataStorage : public c3poBase, public c3poBaseInterface
       DataStorage(c3po *ptr);
       ~DataStorage();
 
-      void read();
-
-      void write();
-
-      void scatter();
-
-      void parallelize();
-
-      void init();
-
-      void allocateMe() const;
-
-      bool isAllocated() const {return isAllocated_;} ;
-
-      int nbody()     const {return nbody_;} ;
-
-      int nbody_all() const {return nbody_all_;} ;
+      
+      void init() const;
       
       void addfVF(std::string,double*,double*,double*,int sp=1);
       
@@ -137,31 +123,22 @@ class DataStorage : public c3poBase, public c3poBaseInterface
       void addRMAvF(std::string,double*,double*,double*, int sp=1);
       void addRMAsF(std::string,double*);
       
-      inline MPI::Win** getWinV(std::string);
-      inline MPI::Win*  getWinS(std::string);
-      
-      inline MPI::Win** getWinV(int i) {return winV_[i];};
-      inline MPI::Win*  getWinS(int i) {return winS_[i];};
-      
-      int numWin_V() {return winV_.size()*3;};
-      int numWin_S() {return winS_.size();};
+  
       
       inline double  VF(int name, int component, int cell ) { return *(RMAvF_[name]->value(component,cell)); };
       inline double  SF(int name, int cell ) { return RMAsF_[name]->value()[cell]; };
       
-      void setCellWin(MPI::Win*) const;  
       
+      int fVFsize()  {return fVF_.size();};
+      int fSFsize()   {return fSF_.size();};
+
       void writeFields(std::string OpName);
-      void writeParticles();
-      void writeParticleFields(std::string OpName);
+    
       
       std::string NameChanges(std::string OpName);
       void setFileName(std::string OpName);
       
-      void addParticle(double m, double* pos, double* vel, std::vector< double* >* force, double* torque = NULL);
-      void deleteParticles();
-      Particle* getParticle(int i) {return particles_[i];};
-      int numOfParticles() {return particles_.size();};
+     
       
       void setTimeName(std::string t) const {timeName_.assign(t);};
       std::string getTimeName()       const {return timeName_;};
@@ -170,27 +147,70 @@ class DataStorage : public c3poBase, public c3poBaseInterface
       void addFieldToConvert(std::string field_);
       void refreshRMAfields();
       
-      int MaxNumOfParticles() const { return MaxNofPar_;};
+      //Probes/Particles functions
       
-      void gatherParticleData() const;
+      
+      void addParticle(std::string groupName, double m, double* pos, double* vel, std::vector< double* >* force, double* torque = NULL);
+     
+      Particle* getParticle(int i) {return probes_[currentProbe_]->getParticle(i);};
+      
+      int numOfParticles() {return probes_[currentProbe_]->numOfParticles();};
+      
+      int MaxNumOfParticles() const { return  probes_[currentProbe_]->MaxNumOfParticles();};
+      
+      int getNofParticlesProc(int p) const {return probes_[currentProbe_]->getNofParticlesProc( p);};
+      
+      int NofProbes() const {return probes_.size();};
+      
+      void setCurrentProbes(int i)  const {currentProbe_=i;};
+      
+      void setProbes(std::string probeName_) const;
+      
+      std::string currentProbes()  { return probes_[currentProbe_]->name();};
+      
+      void writeParticles();
+      void writeParticleFields(std::string filtName);
+      
+      void readParticles() const;
+      
+      bool runProbes(std::string filterName) {return probes_[currentProbe_]->runProbes(filterName);};
+      
+      void deleteParticles();
+      
+      bool useProbes()  {return useProbes_;};
+
+     
+     
+      void writeRegions(); //Function to open output file, and loop through regions such that each region "donate" data to the output
+
+      void createRegion(std::string regionName); 
+      
+      void addCellToRegion(int & IDInternal, bool isOnSurface);
+      
+      void selectRegion(int id) {regionPtr_=regions_[id];};
+      
+      void deleteRegions();
+      
+      int NofRegions() {return regions_.size();};
+      
 
     private:
 
-        mutable std::vector<std::string> fieldsToConvert_;
+        mutable std::vector<std::string>          fieldsToConvert_;
         
-        std::vector<filteredVectorField*>   fVF_;
-        std::vector<filteredScalarField*>   fSF_;
+        std::vector<filteredVectorField*>         fVF_;
+        std::vector<filteredScalarField*>         fSF_;
         
-        std::vector<filteredVectorField*>   RMAvF_;
-        std::vector<MPI::Win**>             winV_;
+        std::vector<filteredVectorField*>         RMAvF_;
+        std::vector<filteredScalarField*>         RMAsF_;
+       
+        mutable std::vector<probeStorage*>        probes_;
         
-        std::vector<filteredScalarField*>   RMAsF_;
-        std::vector<MPI::Win*>              winS_;
+        //List of Regions     
+        std::vector<region*>                      regions_;
         
-        std::vector<Particle*>              particles_;
-        
-        mutable MPI::Win*                         cellwin_;
-        
+        region*                                 regionPtr_;
+    
         
         int                                 buf1;
         double                              buf2;
@@ -198,17 +218,21 @@ class DataStorage : public c3poBase, public c3poBaseInterface
         std::string                         filename_;
         std::string                         dirNameField_;
         std::string                         dirNameParticle_;
+        std::string                         dirNameRegions_;
         mutable std::string                 timeName_;
+        
+        mutable int                               currentProbe_;
 
         int nbody_, nbody_all_;
 
         mutable bool isAllocated_;
         bool haveFieldDir_;
         bool haveParticleDir_;
+        bool haveRegionsDir_;
         
-        mutable int MaxNofPar_;
+        mutable bool useProbes_;
 
- 
+       
 };
 
 } //end c3po_NS

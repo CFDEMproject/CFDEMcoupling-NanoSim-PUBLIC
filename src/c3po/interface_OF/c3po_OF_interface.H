@@ -92,7 +92,11 @@ private:
         std::vector<const char *>     nameScalarFieldsIn_;
         
         std::vector<volVectorField*>  vectorFieldsC3PO_;
+        std::vector<std::string>      nameVectorFieldsC3PO_;
+         
         std::vector<volScalarField*>  scalarFieldsC3PO_;
+        std::vector<std::string>      nameScalarFieldsC3PO_;
+        
         
         std::vector<int>                           particleID_;
         std::vector<double*>                       parVel_;
@@ -101,13 +105,17 @@ private:
         std::vector<double*>                       parPos_;
         std::vector<double*>                       parTorque_;
         
+        
         bool debug_;	
         bool           isPeriodic_[3];
         int me_OF_, nprocs_OF_;
         void processParticles();
         
-        meshCheck* mCheck_;        
-         
+        meshCheck* mCheck_;  
+        
+        std::string particlesName_;      
+        
+        void createGradients();
 
 
 public:
@@ -138,8 +146,8 @@ public:
     void checkMyMesh() const {mCheck_->checkMyMesh();};
     void readBC() const {mCheck_->readBC();};
     
-    void registerParticle(int id_,double m, double* pos_, double* vel_,std::vector< double* > * force_, double* torque = NULL);
-    void registerParticleIB(int id_,double m, double* pos_, double* vel_,std::vector< double* > force_, double* torque = NULL); //parallel handling of immerse boundary forces
+    void registerParticle(std::string groupName, int id_,double m, double* pos_, double* vel_,std::vector< double* > * force_, double* torque = NULL);
+    void registerParticleIB(std::string groupName, int id_,double m, double* pos_, double* vel_,std::vector< double* > force_, double* torque = NULL); //parallel handling of immerse boundary forces
     void deleteParticles();
 
     void registerAllFields();
@@ -155,7 +163,9 @@ public:
 	
 	
 
-    //TODO: put more functions to call c3po routines here!
+    bool registerCFDEMparticles() {return myC3po_->registerCFDEMparticles();};
+    
+    
 
    // Access
 

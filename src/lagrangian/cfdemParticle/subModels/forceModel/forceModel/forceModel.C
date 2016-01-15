@@ -141,10 +141,16 @@ Info << "now providing a scalar field" << endl;
     return tsource;
 };*/
 
+//Function for to add turbulence due to multiphase interaction
+void forceModel::multiphaseTurbulence(volScalarField& field, bool) const
+{
+    // just return zero
+    field     *= 0.0;
+}
+
 //Function for simple explicit treatment of coupling terms, only for temperature
 void forceModel::manipulateScalarField(volScalarField& field) const
 {
-    Info << "no scalar manipulation done." << endl;
     // just return zero
     field     *= 0.0;
 }
@@ -152,7 +158,6 @@ void forceModel::manipulateScalarField(volScalarField& field) const
 //Function for explicit or implicit treatment of coupling terms, for heat and species balance equations
 void forceModel::manipulateScalarField(volScalarField& field, volScalarField& fieldImpl, int speciesID) const
 {
-    Info << "no scalar manipulation done." << endl;
     // just return zero
     field     *= 0.0;
     fieldImpl *= 0.0;

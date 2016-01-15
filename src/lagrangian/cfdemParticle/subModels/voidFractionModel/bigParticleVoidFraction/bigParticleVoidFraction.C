@@ -96,7 +96,7 @@ void bigParticleVoidFraction::setvoidFraction(double** const& mask,double**& voi
     scalar radius(-1);
     scalar volume(0);
     scalar scaleVol= weight();
-    scalar scaleRadius = pow(porosity(),1/3);
+    scalar scaleRadius = pow(porosity(),1./3.);
 
     for(int index=0; index< particleCloud_.numberOfParticles(); index++)
     {
@@ -113,7 +113,7 @@ void bigParticleVoidFraction::setvoidFraction(double** const& mask,double**& voi
 
             //collecting data
             label particleCenterCellID=particleCloud_.cellIDs()[index][0];
-            radius =  particleCloud_.radius(index);
+            radius = particleCloud_.radius(index);
             volume = 4.188790205*radius*radius*radius*scaleVol;
             radius *= scaleRadius;
             vector positionCenter=particleCloud_.position(index);
@@ -133,7 +133,7 @@ void bigParticleVoidFraction::setvoidFraction(double** const& mask,double**& voi
                 if (hashSetLength > maxCellsPerParticle_)
                 {
                     FatalError<< "big particle algo found more cells ("<< hashSetLength
-                              <<") than storage is prepered ("<<maxCellsPerParticle_<<")" << abort(FatalError);
+                              <<") than storage is prepared ("<<maxCellsPerParticle_<<")" << abort(FatalError);
                 }
                 else if (hashSetLength > 0)
                 {

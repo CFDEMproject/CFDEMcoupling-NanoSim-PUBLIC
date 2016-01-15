@@ -62,6 +62,7 @@ class OperationFiltering : public OperationBase
   virtual void process_input(QJsonObject jsonObj) {};
     
   bool particleBased() {return par_;}; 
+  mutable std::string  probesName_;
       
   //The filtered fields
   std::vector<std::string> returnVectorFTFNames() {return filterVFName_;};

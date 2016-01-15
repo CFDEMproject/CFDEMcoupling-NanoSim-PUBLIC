@@ -235,11 +235,13 @@ void DiFeliceDrag::setForce() const
                 if(probeIt_)
                 {
                     #include "setupProbeModelfields.H"
-                    vValues.append(drag);   //first entry must the be the force
-                    vValues.append(Ur);
-                    sValues.append(Rep);
-                    sValues.append(Cd);
-                    sValues.append(voidfraction);
+                    // Note: for other than ext one could use vValues.append(x)
+                    // instead of setSize
+                    vValues.setSize(vValues.size()+1, drag);           //first entry must the be the force
+                    vValues.setSize(vValues.size()+1, Ur);
+                    sValues.setSize(sValues.size()+1, Rep); 
+                    sValues.setSize(sValues.size()+1, Cd);
+                    sValues.setSize(sValues.size()+1, voidfraction);
                     particleCloud_.probeM().writeProbe(index, sValues, vValues);
                 }
             }

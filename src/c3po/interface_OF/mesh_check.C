@@ -42,6 +42,7 @@ License
 #include <algorithm> 
 
 using namespace C3PO_NS;
+using namespace std;
 
 meshCheck::meshCheck(const Foam::fvMesh& mesh,c3po* ptr)
 :
@@ -142,22 +143,49 @@ void meshCheck::determine_cellsize() const
   if( C3po_->meshVerbose() )
 	Info << "meshCheck::determine_cellsize: determining cell and mesh size now" << endl;
 
-	//holds the mesh length in each direction [m]
-	mesh_length_[0]=max(mesh_.points().component(0))-min(mesh_.points().component(0));	//x
-	mesh_length_[1]=max(mesh_.points().component(1))-min(mesh_.points().component(1));	//y
-	mesh_length_[2]=max(mesh_.points().component(2))-min(mesh_.points().component(2));	//z
+	//holds the mesh length in each direction [m], only centroids are considered!
+	mesh_length_[0] = max(mesh_.cellCentres().component(0)) - min(mesh_.cellCentres().component(0));	//x
+	mesh_length_[1] = max(mesh_.cellCentres().component(1)) - min(mesh_.cellCentres().component(1));	//y
+	mesh_length_[2] = max(mesh_.cellCentres().component(2)) - min(mesh_.cellCentres().component(2));	//z
 	
 	//holds the middle point of the first cell - after running checkMyMesh this is be the half cell width in each direction
-	cell_middle_cell_0_[0]=abs(abs(mesh_.C()[0].component(0))-abs(min(mesh_.points().component(0))));	//x		
-    cell_middle_cell_0_[1]=abs(abs(mesh_.C()[0].component(1))-abs(min(mesh_.points().component(1))));	//y
-    cell_middle_cell_0_[2]=abs(abs(mesh_.C()[0].component(2))-abs(min(mesh_.points().component(2))));	//z
-    
-	//holds the length of the first cell in each direction (determined by the first cell)
-	cell_size_[0]=2.0 * cell_middle_cell_0_[0];	//x		
-    cell_size_[1]=2.0 * cell_middle_cell_0_[1];	//y
-    cell_size_[2]=2.0 * cell_middle_cell_0_[2];	//z
-
-
+	//Be careful when using cyclic BCs 
+	// cell_middle_cell_0_[0]=abs( (mesh_.C()[0].component(0))- (min(mesh_.points().component(0))));	//x		
+        // cell_middle_cell_0_[1]=abs( (mesh_.C()[0].component(1))- (min(mesh_.points().component(1))));	//y
+        // cell_middle_cell_0_[2]=abs( (mesh_.C()[0].component(2))- (min(mesh_.points().component(2))));	//z
+      
+        //holds the length of the first cell in each direction (determined by the first cell)
+	// cell_size_[0]= 2.0 * cell_middle_cell_0_[0];	//x		
+        // cell_size_[1]= 2.0 * cell_middle_cell_0_[1];	//y
+        // cell_size_[2]= 2.0 * cell_middle_cell_0_[2];	//z
+        
+        cell_size_[0] = 0.;
+        cell_size_[1] = 0.;
+        cell_size_[2] = 0.;
+        
+        const faceList & ff = mesh_.faces();
+        const pointField & pp = mesh_.points();
+        
+        const cell & cc = mesh_.cells()[0];
+        labelList pLabels(cc.labels(ff));
+        
+        //Use Cell 0 to get the cell size
+        forAll (pLabels, pointi)
+        {
+         
+         point pLocal = pp[pLabels[pointi]];
+         cell_size_[0] += abs( pLocal.component(0) - mesh_.C()[0].component(0) )/4;
+         cell_size_[1] += abs( pLocal.component(1) - mesh_.C()[0].component(1) )/4;
+         cell_size_[2] += abs( pLocal.component(2) - mesh_.C()[0].component(2) )/4;
+        
+        }
+        
+	
+        mesh_length_[0] += cell_size_[0];
+        mesh_length_[1] += cell_size_[1];
+        mesh_length_[2] += cell_size_[2];
+        
+        
 	//holds the number of cells in each direction by dividing the length of the mesh in each direction by the cell width of the first cell
 	number_of_cells_[0]=lround(mesh_length_[0]/cell_size_[0]);	//x
 	number_of_cells_[1]=lround(mesh_length_[1]/cell_size_[1]);	//y  
@@ -174,13 +202,13 @@ void meshCheck::determine_cellsize() const
 
 void meshCheck::compute_globals() const
 { 
-    maxDomain[0]=max(mesh_.points().component(0));  
-    maxDomain[1]=max(mesh_.points().component(1));
-    maxDomain[2]=max(mesh_.points().component(2));
+    maxDomain[0]=max(mesh_.points().component(0)) ;  
+    maxDomain[1]=max(mesh_.points().component(1)) ;
+    maxDomain[2]=max(mesh_.points().component(2)) ;
     
-    minDomain[0]=min(mesh_.points().component(0));  
-    minDomain[1]=min(mesh_.points().component(1));
-    minDomain[2]=min(mesh_.points().component(2));
+    minDomain[0]=min(mesh_.points().component(0)) ;  
+    minDomain[1]=min(mesh_.points().component(1)) ;
+    minDomain[2]=min(mesh_.points().component(2)) ;
     
     MPI_Allreduce(maxDomain,maxDomainGlobal,3,MPI_DOUBLE,MPI_MAX,MPI_COMM_WORLD);
     MPI_Allreduce(minDomain,minDomainGlobal,3,MPI_DOUBLE,MPI_MIN,MPI_COMM_WORLD);

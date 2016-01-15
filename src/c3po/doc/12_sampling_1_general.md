@@ -18,7 +18,13 @@ Sampling command specifiers
 * "sampleCount": requires an integer. The user can specify the number of cells to sample. If set to -1, the whole domain will be sampled.
 
 Note that this _sampling operation_ requires as many _binning operations_ as the number of fields to be sampled ( +1 if a _formula_ is used) when "samve2Bin" is set to 'true'.
-This sampling operation allows multimarking in order to calculate conditional expected values of the sampled fields in an arbitrary parameter space. Results are dumped to disk in "c3po_binning" as explained in "13_binning.md". In addition a multimarking _general sampling operation_ must be connected to the corresponding multimarking _binning operation_.   
+This sampling operation allows multimarking in order to calculate conditional expected values of the sampled fields in an arbitrary parameter space. Results are dumped to disk in "c3po_binning" as explained in "13_binning.md". In addition a multimarking _general sampling operation_ must be connected to the corresponding multimarking _binning operation_.  
+
+It is also possible to sample inside a specific region of the domain adding the following entries:
+* "selective": requires a bool. If set to _true_ just a section of the domain will be sampled. 
+* "max": requires an array of double values. The maximum box size.
+* "min": requires an array of double values. The minimum box size.
+ 
 
 Example
 -------

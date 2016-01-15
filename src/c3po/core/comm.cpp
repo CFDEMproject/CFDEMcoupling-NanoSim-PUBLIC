@@ -109,7 +109,7 @@ void Comm::finalize_all() const
 
 
 
-MPI::Win* Comm::goRMA(double* x) const
+/*MPI::Win* Comm::goRMA(double* x) const
 {
 
 // MPI::Info info = MPI::Info::Create();
@@ -149,7 +149,7 @@ MPI::Win* Comm::goRMA(int* x) const
     
 }
 
-
+*/
 /* ----------------------------------------------------------------------
    settings
 ------------------------------------------------------------------------- */

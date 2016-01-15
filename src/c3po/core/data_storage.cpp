@@ -61,13 +61,20 @@ DataStorage::DataStorage(c3po *ptr) :
    c3poBase(ptr),
       nproc(comm().nprocs()),
    timeName_("0"),
+   currentProbe_(0),
    nbody_(0),
    nbody_all_(0),
    isAllocated_(false),
-   MaxNofPar_(0)  
+   useProbes_(false)
 {
     haveFieldDir_ = false;
     haveParticleDir_ = false;
+    haveRegionsDir_ = false;
+    
+    dirNameField_.assign(   "c3po_dataStorage_fields");
+    dirNameParticle_.assign("c3po_dataStorage_particles");
+    dirNameRegions_.assign( "c3po_dataStorage_regions");
+   
 } 
 
 /* ---------------------------------------------------------------------------*/ 
@@ -75,8 +82,11 @@ DataStorage::~DataStorage()
 {
     deleteRMA();
     deleteFields();
-    deleteParticles();   
-   
+    deleteRegions();
+    for(unsigned int probes=0;probes<probes_.size();probes++)
+     delete probes_[probes];
+     
+    probes_.clear();
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -84,114 +94,141 @@ DataStorage::~DataStorage()
 /////////////////////////////////////////////////////////////////////////////
 
 /* ----------------------------------------------------------------------
-   Read all necessary global properties so all MPI procs have them
-------------------------------------------------------------------------- */
-
-void DataStorage::read()
-{
-    //Allocate or Set Data arrays
-    allocateMe();
-}
-
-/* ----------------------------------------------------------------------
-   Write all necessary global properties so all MPI procs have them
-------------------------------------------------------------------------- */
-
-void DataStorage::write()
-{
-
-    //TODO
-    //Write particle information to file
-//    OperationProperties op(OPERATION_OUTPUT,false,false,false);
-
-    //output().write_screen_one("DataStorage is now writing some output");
-//    data().write(op);
-}
-
-
-/* ----------------------------------------------------------------------
-   Scatter global properties so all MPI procs have them
-------------------------------------------------------------------------- */
-
-void DataStorage::scatter()
-{
-    if(comm().nprocs() > 1)
-        error().throw_error_one(FLERR,"TODO: implement daat scattering if required");
-
-   //TODO: in CustomValueTracker
-   //make send buffer
-   //pack buffer
-   //unpack buffer
-}
-
-/* ----------------------------------------------------------------------
-   Scatter global properties so all MPI procs have them
-------------------------------------------------------------------------- */
-
-void DataStorage::parallelize()
-{
-    if(comm().nprocs() > 1)
-        error().throw_error_one(FLERR,"TODO: delete per-particle data if not in my subdomain");
-
-}
-
-/* ----------------------------------------------------------------------
    Intitialization phase - done before tun
 ------------------------------------------------------------------------- */
 
-void DataStorage::init()
+void DataStorage::init() const
 {
 
-    return;
-}
 
-void DataStorage::allocateMe() const
-{
-
-    printf("DataStorage: will allocate memory for %d operations in operationContainer(). \n", operationContainer().operationCount());
-
-    output().write_screen_one("\nDataStorage allocation completed.");
+ if(input().mainSettings()["useProbes"].isNull()) return;
+ 
+ useProbes_ = input().mainSettings()["useProbes"].toBool();
+ 
+ if(!useProbes_) return;
+ 
+ QJsonDocument loadDoc;
+ 
+ QJsonObject    parObj_;
+ 
+ loadDoc = input().openJsonFile("c3po_control","probeSettings","probeSettings", parObj_ );
+ 
+ //Read probe names
+ 
+  std::vector<std::string> probeNames_;
+ 
+  QString qsV=parObj_["probeNames"].toString();
+  std::string big=qsV.toUtf8().constData();
+   
+  for (unsigned int it=0; it<big.size();it++)
+  {
+        
+        if (big[it] != ' ' )
+        {  
+          
+          std::string name;
+         
+          while (big[it] != ' ')
+            {
+               name.push_back(big[it]);
+               it++;  
+               if (it==big.size()) break;           
+              
+            }  
+           
+          probeNames_.push_back(name); 
+           
+        }
+  }
+  
+  //Create probe storages
+  
+   for (unsigned int probe=0; probe<probeNames_.size();probe++)
+   {
+    
+     if(parObj_[probeNames_[probe].c_str()].isNull())
+      error().throw_error_one(FLERR,"\nOne or more defined probes are not specified in probeSettings.json\n");
+      
+     QJsonObject qOb=parObj_[probeNames_[probe].c_str()].toObject();
+     
+     //Read filters
+     
+     std::vector<std::string> filtNames_;
+     
+      if(qOb["filters"].isNull())
+      error().throw_error_one(FLERR,"\nA \"filters\" entry is not specified in probeSettings.json\n");
+ 
+     QString qsV1=qOb["filters"].toString();
+     std::string big1=qsV1.toUtf8().constData();
+   
+     for (unsigned int it=0; it<big1.size();it++)
+     {
+        
+        if (big1[it] != ' ' )
+        {  
+          
+          std::string name;
+         
+          while (big1[it] != ' ')
+            {
+               name.push_back(big1[it]);
+               it++;  
+               if (it==big1.size()) break;           
+              
+            }  
+           
+          filtNames_.push_back(name); 
+           
+        }
+     }
+     
+     
+      if(qOb["readFromJson"].isNull())
+      error().throw_error_one(FLERR,"\nA \"readFromJson\" entry is not specified in probeSettings.json\n");
+ 
+    
+     
+     bool readFromJson = qOb["readFromJson"].toBool();
+     
+     //Create probe storage
+     probeStorage * newStorage = new probeStorage( probeNames_[probe] ,
+                                                   filtNames_,
+                                                   readFromJson,
+                                                   c3po_ptr()
+                                                  );
+                                                  
+     probes_.push_back(newStorage);
+        
+   }
 
 }
 
 
 /* ----------------------------------------------------------------------
-   Add particles / cells to memory
+   Add particles / fields to memory
 ------------------------------------------------------------------------- */
-void DataStorage::addParticle(double d, double* pos, double* vel, std::vector < double* >* force, double* torque)
+void DataStorage::addParticle(std::string groupName,double d, double* pos, double* vel, std::vector < double* >* force, double* torque)
 {
- Particle* par_ = new Particle();
- particles_.push_back(par_);
+ if(!useProbes_) return;
  
- par_->setradius(d);
- par_->setpos(pos);
- par_->setvel(vel);
- par_->setforce(force);
+ for(unsigned int probes=0;probes<probes_.size();probes++)
+ {
+  if(probes_[probes]->name().compare(groupName)==0)
+  {
+   probes_[probes]->addParticle(d,pos,vel, force,torque);
+   return;
+  }
+ }
  
- if(torque != NULL)
-  par_->settorque(torque);
+  error().throw_error_one(FLERR,"\nERROR: Invalid group name for particles/probes registration.\n");
+ 
 }
 
 /* ---------------------------------------------------------------------------*/
 void DataStorage::deleteParticles()
 {
- for (unsigned int i=0;i<particles_.size();i++)
-  delete particles_[i];
- particles_.clear();
-}
-/* ---------------------------------------------------------------------------*/
-void DataStorage::gatherParticleData() const
-{
- int tmp_[comm().nprocs()];
- int localNPar_ = particles_.size();
- 
- MPI_Allgather(&localNPar_,1,MPI_INT,tmp_,1,MPI_INT,MPI_COMM_WORLD);
- 
- //find the max
- for(int i=0;i<comm().nprocs();i++)
-  if(MaxNofPar_<tmp_[i]) MaxNofPar_=tmp_[i];
- 
- 
+ for (unsigned int i=0;i<probes_.size();i++)
+  probes_[i]->deleteParticles();
 }
 
 /* ---------------------------------------------------------------------------*/ 
@@ -252,7 +289,7 @@ void DataStorage::writeFields(std::string OpName)
    std::vector<double*>     dataS_;
    std::vector<std::string> dataNS_;
    
-   //save vector data
+   //save std::vector data
    for (int n=0;n<fVF_size;n++)     
    {
          dataVPointer_.push_back(fVF_[n]->values());
@@ -283,262 +320,7 @@ void DataStorage::writeFields(std::string OpName)
  timer().stamp(TIME_OUTPUT);
 }
 
-/* ---------------------------------------------------------------------------*/ 
-void DataStorage::setCellWin(MPI::Win* x) const  { cellwin_ = x;}
 
-
-/* ---------------------------------------------------------------------------*/ 
-void DataStorage::writeParticles()
-{
-
-  if(!input().storageWriteParticles())
-      return;
-
-  setFileName("particles");
-  output().generateDir(dirNameParticle_, haveParticleDir_);
-
-  timer().stamp();
-
-  int npar=particles_.size();
-  if(npar==0) return;
-  cout << "\n number of particles: " << npar;
-  std::string file_(dirNameParticle_+"/time");
-  file_.append(NameChanges("particles"));
-  
-
-  
-  #ifdef H5_LIB 
-  if(input().dumpFormat().compare("hdf5")==0)
-  { 
-   file_.append(".h5");
-   createH5file(file_); 
-  
-  std::vector< double > data; 
-  for (int par=0; par<npar; par++)
-   data.push_back(*particles_[par]->getradius());
- 
-   OneArrayToH5(file_, "radius", &data[0], npar);
-   data.clear();
-  for (int par=0; par<npar; par++)
-   data.push_back(particles_[par]->getpos()[0]);
-   
-   OneArrayToH5(file_, "pos_x", &data[0], npar);
-   data.clear();
-  for (int par=0; par<npar; par++)
-   data.push_back(particles_[par]->getpos()[1]);
-   
-   OneArrayToH5(file_, "pos_y", &data[0], npar);
-   data.clear();
-  for (int par=0; par<npar; par++)
-   data.push_back(particles_[par]->getpos()[2]);
-   
-   OneArrayToH5(file_, "pos_z", &data[0], npar);
-   data.clear();
-  for (int par=0; par<npar; par++)
-   data.push_back(particles_[par]->getvel()[0]);
-  
-   OneArrayToH5(file_, "vel_x", &data[0], npar);
-   data.clear();
-  
-  for (int par=0; par<npar; par++)
-   data.push_back(particles_[par]->getvel()[1]);
-   
-   OneArrayToH5(file_, "vel_y", &data[0], npar);
-   data.clear();
-  
-  for (int par=0; par<npar; par++)
-   data.push_back(particles_[par]->getvel()[2]);
-   
-   OneArrayToH5(file_, "vel_z", &data[0], npar);
-   data.clear();
-   
-  for (int par=0; par<npar; par++)
-   data.push_back(particles_[par]->gettorque()[0]);
-  
-   OneArrayToH5(file_, "torque_theta", &data[0], npar);
-   data.clear();
-  
-  for (int par=0; par<npar; par++)
-   data.push_back(particles_[par]->gettorque()[1]);
-   
-   OneArrayToH5(file_, "torque_phi", &data[0], npar);
-   data.clear();
-  
-
-  int NofForces_=particles_[0]->getNofForces();
-  for(int force=0;force<NofForces_;force++) 
-  {
-   char buf[40];
-   sprintf(buf,"force_%i",force);
-   std::string dsetName_(buf);
-   for (int par=0; par<npar; par++)
-    data.push_back((particles_[par]->getforce(force))[0]);
- 
-   dsetName_.append("_x");
-   OneArrayToH5(file_, dsetName_.c_str() , &data[0], npar);
-   data.clear();
-   for (int par=0; par<npar; par++)
-    data.push_back((particles_[par]->getforce(force))[1]);
-  
-   dsetName_.assign(buf);
-   dsetName_.append("_y");
-   OneArrayToH5(file_,dsetName_.c_str() , &data[0], npar);
-   data.clear();
-   dsetName_.assign(buf);
-   dsetName_.append("_z");
-   for (int par=0; par<npar; par++)
-    data.push_back((particles_[par]->getforce(force))[2]);
-  
-   OneArrayToH5(file_,dsetName_.c_str() , &data[0], npar);
-   data.clear();
-  }  
- }
- #endif
- 
- if(input().dumpFormat().compare("json")==0)
- {
-   file_.append(".json");
-   std::vector<double*> dataV_;
-   std::vector<double>  data;
-   std::vector<std::string> dataN_;
-   std::vector<int> datanum_;
-   
-   
-   for (int par=0; par<npar; par++)
-   {
-    char buf[8];
-    sprintf(buf,"%i",par);
-    std::string particle(buf); 
-    
-    dataV_.push_back(particles_[par]->getradius());
-    dataV_.push_back(particles_[par]->getpos());
-    dataV_.push_back(particles_[par]->getvel());
-    dataV_.push_back(particles_[par]->gettorque());
-    
-    dataN_.push_back(particle + "_radius");
-    datanum_.push_back(1);
-    dataN_.push_back(particle + "_position");
-    datanum_.push_back(3);
-    dataN_.push_back(particle + "_velocity");
-    datanum_.push_back(3);
-    dataN_.push_back(particle + "_torque");
-    datanum_.push_back(2);
-    
-    int NofForces_=particles_[0]->getNofForces();
-    for(int force=0;force<NofForces_;force++) 
-    {
-     char buf[40];
-     sprintf(buf,"%s_force_%i",particle.c_str(),force);
-     std::string dn_(buf);
-     dataN_.push_back(dn_);
-     dataV_.push_back(particles_[par]->getforce(force));
-     datanum_.push_back(3);
-    }
- 
-  output().createQJsonArrays(file_,"particles",dataN_,dataV_,-1,true, &datanum_);
-  }
-
- }
-
- timer().stamp(TIME_OUTPUT);
-}
-//---------------------------------------------------------------//
-void DataStorage::writeParticleFields(std::string OpName)
-{
-   if(!input().storageWriteParticles())
-      return;
-
-  setFileName(OpName);
-  output().generateDir(dirNameParticle_, haveParticleDir_);
-
-  timer().stamp();
-
-  int npar=particles_.size();
-  if(npar==0) return;
-  int fVF_size= fVF_.size();
-  int fSF_size= fSF_.size();
-  
-  std::string file_(dirNameParticle_+"/time");
-  file_.append(NameChanges(OpName));
- 
-  #ifdef H5_LIB  
- if(input().dumpFormat().compare("hdf5")==0)
- { 
-  file_.append(".h5");
-  createH5file(file_); 
-  
-  std::vector< double > data; 
- 
-  for(int i=0;i<fVF_size;i++)
-   for(int j=0;j<3;j++)
-   {
-    for (int par=0; par<npar; par++)
-     data.push_back(particles_[par]->filteredVector(i)[j]);
-    
-    char buf[40];
-    sprintf(buf,"%s_%i",fVF_[i]->name().c_str(),j);
-    std::string dataset(buf);
-    OneArrayToH5(file_, dataset.c_str(), &data[0], npar);
-    data.clear();
-   }
-
-   for(int i=0;i<fSF_size;i++)
-   {
-    for (int par=0; par<npar; par++)
-     data.push_back(*(particles_[par]->filteredScalar(i)));
-    
-    OneArrayToH5(file_, fSF_[i]->name().c_str(), &data[0], npar);
-    data.clear();
-   }
-   
-  
- } 
- #endif 
- 
-
-if(input().dumpFormat().compare("json")==0)
- {
-  //  error().throw_error_one(FLERR,"output of particle data in JSON format not yet supported");
-  file_.append(".json");
-  
-  std::vector<double*> dataV_;
-  std::vector<std::string> dataN_;
- 
-  for(int i=0;i<fVF_size;i++)
-   for(int j=0;j<3;j++)
-   {
-    double * data = new double[npar];
-
-    for (int par=0; par<npar; par++)
-     data[par]=(particles_[par]->filteredVector(i)[j]);
-    
-    char buf[40];
-    sprintf(buf,"%s_%i",fVF_[i]->name().c_str(),j);
-    std::string dataset(buf);
-    dataN_.push_back(buf);
-    dataV_.push_back(data);
-   }
-
-   for(int i=0;i<fSF_size;i++)
-   {
-    double * data = new double[npar];
-    for (int par=0; par<npar; par++)
-     data[par]=*(particles_[par]->filteredScalar(i));
-    
-    dataN_.push_back(fSF_[i]->name());
-    dataV_.push_back(data);
-    
-   }
-   output().createQJsonArrays(file_,"fields_at_particle_centers",dataN_,dataV_,npar,true);
-   
-   for(unsigned int i=0;i<dataV_.size();i++)
-    delete dataV_[i];
-    
-   dataV_.clear();
- }
-
- timer().stamp(TIME_OUTPUT);
-}
 /* ---------------------------------------------------------------------------*/ 
 void DataStorage::addfVF(std::string name,double* x,double* y,double* z, int sp)
 {
@@ -552,8 +334,12 @@ void DataStorage::addfVF(std::string name,double* x,double* y,double* z, int sp)
   
   fVF_.push_back(v_);
   
-  for(unsigned int par=0;par<particles_.size();par++)
-   particles_[par]->addVector();
+   for(unsigned int i=0;i<probes_.size();i++)
+   {
+    probes_[i]->addVector();
+ 
+   }
+
 
 }
 
@@ -561,20 +347,11 @@ void DataStorage::addfVF(std::string name,double* x,double* y,double* z, int sp)
 /* ---------------------------------------------------------------------------*/ 
 void DataStorage::addRMAvF(std::string name,double* x,double* y,double* z, int sp)
 {
- // MPI::Win* *win= new MPI::Win*[3];
- // int totcells_=selectorContainer().NofCells();
-  
+ 
   filteredVectorField *v_ = new filteredVectorField(name, x,y,z,sp);
-//  filteredVectorField *fv_ = new filteredVectorField(name, totcells_);
 
   RMAvF_.push_back(v_);
   
- // win[0]=comm().goRMA(x);
- // win[1]=comm().goRMA(y);
- // win[2]=comm().goRMA(z);
-  
- // winV_.push_back(win);
- // fVF_.push_back(fv_);*/
   
 }
 
@@ -589,27 +366,24 @@ void DataStorage::addfSF(std::string name,double* x)
   
   fSF_.push_back(s_);
   
-  for(unsigned int par=0;par<particles_.size();par++)
-   particles_[par]->addScalar();
+ 
+  for(unsigned int i=0;i<probes_.size();i++)
+ {
+  probes_[i]->addScalar();
+ 
+ }
 
-  
 
 }
 
 /* ---------------------------------------------------------------------------*/ 
 void DataStorage::addRMAsF(std::string name,double* x)
 {
-  //int totcells_=selectorContainer().NofCells();
-  
-  filteredScalarField *s_ = new filteredScalarField(name, x);
- //filteredScalarField *fs_ = new filteredScalarField(name, totcells_);
 
+  filteredScalarField *s_ = new filteredScalarField(name, x);
+ 
   RMAsF_.push_back(s_);
- // MPI::Win* win = comm().goRMA(x);
- // winS_.push_back(win);
  
- 
-// fSF_.push_back(fs_);
   
 }
 
@@ -654,35 +428,6 @@ filteredScalarField* DataStorage::fSF(std::string name)
 
 }
 
-/* ---------------------------------------------------------------------------*/ 
-MPI::Win** DataStorage::getWinV(std::string name)
-{
-  int RMAvF_size= RMAvF_.size();
-  
-  for (int i=0;i<RMAvF_size;i++)
-  {
-  
-    if (RMAvF_[i]->name()==name)
-     return winV_[i];
-  }
-  error().throw_error_all("data_storage.cpp",0,"I can not find a window...");
-  return NULL;
-}
-
-/* ---------------------------------------------------------------------------*/ 
-MPI::Win* DataStorage::getWinS(std::string name)
-{
-  int RMAsF_size= RMAsF_.size();
-  
-  for (int i=0;i<RMAsF_size;i++)
-  {
-  
-    if (RMAsF_[i]->name()==name)
-     return winS_[i];
-  }
-  error().throw_error_all("data_storage.cpp",0,"I can not find a window...");
-  return NULL;
-}
 
 /* ---------------------------------------------------------------------------*/ 
 void DataStorage::deleteFields()
@@ -706,24 +451,7 @@ void DataStorage::deleteFields()
 /* ---------------------------------------------------------------------------*/ 
 void DataStorage::deleteRMA()
 {
-  int winV_size = winV_.size();
-  for (int i=0;i<winV_size;i++)
-   for(int n=0;n<3;n++)
-    {//(winV_[i])[n]->Free();
-     //delete winV_[i][n];
-     }
-   //winV_.clear();
-
-  int winS_size= winS_.size();
-  for (int i=0;i<winS_size;i++)
-   {
-     //winS_[i]->Free();
-    //delete winS_[i];
-   }
-
-  winS_.clear();   
  
-
   for(unsigned int i=0; i<RMAvF_.size();i++)
    delete RMAvF_[i];
   
@@ -740,12 +468,12 @@ void DataStorage::deleteRMA()
 /* ---------------------------------------------------------------------------*/ 
 std::string DataStorage::NameChanges(std::string OpName)
 {
-   std :: ostringstream temp[3];
+   std::ostringstream temp[3];
    
    for (int i=0;i<3;i++)
     temp[i] << selectorContainer().filterWidth()[i];
    
-   std :: ostringstream temp2;
+   std::ostringstream temp2;
    temp2 << comm().me();
    
    std::string result("_"+timeName_+"_"+OpName.c_str()+"_processor"+temp2.str());
@@ -756,8 +484,7 @@ std::string DataStorage::NameChanges(std::string OpName)
 /* ---------------------------------------------------------------------------*/ 
 void DataStorage::setFileName(std::string OpName)
 {
- dirNameField_.assign(   "c3po_dataStorage_fields");
- dirNameParticle_.assign("c3po_dataStorage_particles");
+
 
  if(input().dumpFormat().compare("hdf5")==0)
     filename_.assign(dirNameField_+"/results"+NameChanges(OpName)+".h5");
@@ -816,4 +543,102 @@ void DataStorage::addFieldToConvert(std::string field_)
   if(field_.compare(fieldsToConvert_[i])==0) return;
  
  fieldsToConvert_.push_back(field_);
+}
+/*-----------------------------------------------------------------------------*/
+void DataStorage::writeParticles()
+{
+ if(!input().storageWriteParticles())
+      return;
+
+ setFileName("particles");
+ output().generateDir(dirNameParticle_, haveParticleDir_);
+ 
+ std::string file_(dirNameParticle_+"/time");
+ file_.append(NameChanges("particles"));
+  
+ 
+ for(unsigned int i=0;i<probes_.size();i++)
+ {
+  probes_[i]->writeParticles(file_);
+ 
+ }
+
+}
+
+/*------------------------------------------------------------------------------*/
+void DataStorage::writeParticleFields(std::string filtName)
+{
+   if(!input().storageWriteParticles())
+      return;
+
+  setFileName(filtName);
+  output().generateDir(dirNameParticle_, haveParticleDir_);
+
+  std::string file_(dirNameParticle_+"/time");
+  file_.append(NameChanges(filtName));
+  
+ 
+ for(unsigned int i=0;i<probes_.size();i++)
+ {
+  if(!(probes_[i]->runProbes(filtName))) continue;
+  probes_[i]->writeParticleFields(file_);
+ 
+ }
+
+}
+
+/*-------------------------------------------------------------------------------*/
+void DataStorage::readParticles() const
+{
+ for(unsigned int i=0;i<probes_.size();i++)
+ {
+  probes_[i]->readParticles();
+  probes_[i]->gatherParticleData();
+ 
+ }
+
+}
+/*-------------------------------------------------------------------------------*/
+void DataStorage::setProbes(std::string probeName) const
+{
+ for(unsigned int i=0;i<probes_.size();i++)
+ {
+  if(probeName.compare(probes_[i]->name())==0)
+     currentProbe_=i;
+ 
+ }
+
+}
+/*-------------------------------------------------------------------------------*/
+void DataStorage::createRegion(std::string regionName)
+{
+
+ std::vector<std::string> filtName_;
+ filtName_.push_back("all");
+ 
+ region * reg_ = new region(regionName,filtName_,false,c3po_ptr());
+
+ regions_.push_back(reg_);
+}
+/*-------------------------------------------------------------------------------*/
+void DataStorage::addCellToRegion(int & IDInternal, bool isOnSurface)
+{
+ regionPtr_->addCell(IDInternal, isOnSurface);
+}
+/*-------------------------------------------------------------------------------*/
+void DataStorage::deleteRegions()
+{
+ for(unsigned int i=0; i<regions_.size();i++)
+  delete regions_[i];
+  
+ regions_.clear();
+
+}
+/*-------------------------------------------------------------------------------*/
+void DataStorage::writeRegions()
+{
+ output().generateDir(dirNameRegions_, haveRegionsDir_);
+ for(unsigned int i=0; i<regions_.size();i++)
+  regions_[i]->write();
+  
 }

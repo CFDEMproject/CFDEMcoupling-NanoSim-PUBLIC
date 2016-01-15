@@ -77,7 +77,7 @@ class scalarGeneralExchange
 :
     public forceModel
 {
-private:
+protected:
 
     dictionary          propsDict_;
 
@@ -100,8 +100,13 @@ private:
     mutable double      **partDatTransCoeff_;         // Lagrangian array
     mutable double      **partDatFluid_;              // Lagrangian array
 
+    mutable double       **partTemp_;
+
     mutable double      **partDatTmpExpl_;            // Lagrangian array - for explicit source to fluid eqns
     mutable double      **partDatTmpImpl_;            // Lagrangian array - for implicit source to fluid eqns
+
+    mutable double      **partDatSaturation_;                   // Lagrangian array
+    mutable double      **partCoolingFlux_;
     
     bool                validPartFlux_;               //indicator if found, based on heat, but also used for species
     bool                validPartTransCoeff_;         //indicator if found, based on heat, but also used for species
@@ -124,7 +129,14 @@ private:
     const wordList      partSpeciesTransCoeffNames_;
     const wordList      partSpeciesFluidNames_;
 
-    scalarList          DMolecular_;                 
+    scalarList          DMolecular_; 
+
+    //evaporation properties 
+    scalarList          parameterVap_;  // parameters for vapor pressure
+
+    scalar              Rvap_;  
+
+    dimensionedScalar   deltaHEvap_;    //units: K; deltaHEvap = deltaH_v / cp_g            
 
     //Scalar properties
     scalar              maxSource_;                   // max (limited) value of src field
@@ -150,6 +162,14 @@ public:
         (
             const dictionary& dict,
             cfdemCloud& sm
+        );
+
+        //- Construct from components
+        scalarGeneralExchange
+        (
+            const dictionary& dict,
+            cfdemCloud& sm,
+            word        dictName
         );
 
     // Destructor

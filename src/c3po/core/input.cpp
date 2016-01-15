@@ -40,9 +40,11 @@ License
 #include "stdio.h"
 #include "input_properties.h"
 #include <iostream>
+#include <sstream>
 #include <iomanip>
 #include <sys/stat.h>
 #include <stdlib.h> 
+#include "timer.h"
 using std::cout;
 using std::endl;
 
@@ -85,7 +87,8 @@ Input::~Input()
 
 void Input::process_input_script()
 {
-         
+     
+    timer().stamp();     
     char filename [400];
     
     sprintf(filename,"./c3po_control/c3po.input");
@@ -150,6 +153,7 @@ void Input::process_input_script()
     }
 
     output().write_screen_one("\n ***   C3PO processed your inputs.   ***\n\n");
+    timer().stamp(TIME_INPUT);
     
 }
 
@@ -208,6 +212,7 @@ void Input::readFieldNames()
   }
   
 
+ 
   QString qsS=qOb["Scalarfields"].toString();
    std::string bigS=qsS.toUtf8().constData();
    
@@ -232,6 +237,87 @@ void Input::readFieldNames()
         }
   }
   
+ if(!qOb["computeScalarGradient"].isNull()) 
+ {
+  qsS=qOb["computeScalarGradient"].toString();
+  bigS=qsS.toUtf8().constData();
+   
+  for (unsigned int it=0; it<bigS.size();it++)
+  {
+        
+        if (bigS[it] != ' ' )
+        {  
+          
+          std::string name;
+         
+          while (bigS[it] != ' ')
+            {
+               name.push_back(bigS[it]);
+               it++;  
+               if (it==bigS.size()) break;           
+              
+            }  
+           
+          SF_grad.push_back(name); 
+           
+        }
+  }
+ }
+ 
+ if(!qOb["computeVectorGradient"].isNull()) 
+ {
+  qsS=qOb["computeVectorGradient"].toString();
+  bigS=qsS.toUtf8().constData();
+   
+  for (unsigned int it=0; it<bigS.size();it++)
+  {
+        
+        if (bigS[it] != ' ' )
+        {  
+          
+          std::string name;
+         
+          while (bigS[it] != ' ')
+            {
+               name.push_back(bigS[it]);
+               it++;  
+               if (it==bigS.size()) break;           
+              
+            }  
+           
+          VF_grad.push_back(name); 
+           
+        }
+  }
+ }
+ 
+ if(!qOb["computeShearRate"].isNull()) 
+ {
+  qsS=qOb["computeShearRate"].toString();
+  bigS=qsS.toUtf8().constData();
+   
+  for (unsigned int it=0; it<bigS.size();it++)
+  {
+        
+        if (bigS[it] != ' ' )
+        {  
+          
+          std::string name;
+         
+          while (bigS[it] != ' ')
+            {
+               name.push_back(bigS[it]);
+               it++;  
+               if (it==bigS.size()) break;           
+              
+            }  
+           
+          shearRates_.push_back(name); 
+           
+        }
+  }
+ }
+ 
 }
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -376,4 +462,65 @@ std::string Input::getSFname(int x)
   return emp;
 }
 
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+void Input::readParticles(std::vector<double>* positions_, std::string probesName) const
+{
+ 
+ 
+ positions_->clear();
+ 
+ QJsonDocument loadDoc;
+ 
+ QJsonObject    parObj_;
+ 
+ loadDoc = openJsonFile("c3po_control",probesName.c_str(),"probeData", parObj_ );
+ 
+ if(parObj_["numberOfProbes"].isNull())
+ {
+  error().throw_error_one(FLERR,"ERROR: can not find \"numberOfprobes\" entry in the probe file. \n If you are not interest in probes or particles please set 'useProbes' to false in c3po.json 'mainSettings' \n"); 
+ }
+ 
+ int nPar_ = parObj_["numberOfProbes"].toInt();
+ 
+ if(parObj_["positions"].isNull())
+  error().throw_error_one(FLERR,"ERROR: entry \"positions\" not specified in probes file");
+ 
+ 
+ QJsonObject    posObj_ = parObj_["positions"].toObject();
+ 
+ for(int par=0;par<nPar_;par++) 
+ {
+  
+  std::stringstream ss;
+  ss << par;
+  std::string str = ss.str();
+  
+  if(posObj_[str.c_str()].isNull())
+   error().throw_error_one(FLERR,"ERROR: found samples are inconsistent with the \"numberOfProbes\" entry or invalid sample id");
+   
+  QJsonArray dataArray =  posObj_[str.c_str()].toArray();
+  
+  if(dataArray.count()!=3)
+   error().throw_error_one(FLERR,"ERROR: wrong array length in probes file!");
+   
+  for(int i=0;i<3;i++)
+   positions_->push_back((dataArray[i]).toDouble());
+
+
+ }
+ 
+ int regPar_= positions_->size()/3;
+ 
+ if(regPar_!=nPar_)
+   error().throw_error_one(FLERR,"ERROR: found probes are inconsistent with the \"numberOfProbes\" entry!");
+ 
+
+}
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+bool Input::registerCFDEMparticles() const
+{
+ if(mainObj_["registerCFDEMparticles"].isNull()) return false;
+ else return mainObj_["registerCFDEMparticles"].toBool();
+}
 

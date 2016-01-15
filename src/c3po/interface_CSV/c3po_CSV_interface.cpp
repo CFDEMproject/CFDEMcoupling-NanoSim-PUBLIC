@@ -46,6 +46,9 @@ using namespace C3PO_NS;
 
 struct stat dirLogicCSV;
 
+/* ----------------------------------------------------------------------
+   c3poCSVInterface Constructors
+------------------------------------------------------------------------- */
 c3poCSVinterface::c3poCSVinterface(MPI_Comm comm)
 :
 myC3po_(NULL),
@@ -81,44 +84,57 @@ twoD_(false)
  
  outDirGenerated_ = false;
  
+ fO_ = new CSVfieldOperations( mesh_ , fields_ );
+ 
 }
 
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+/* ----------------------------------------------------------------------
+   c3poCSVInterface Destructors
+------------------------------------------------------------------------- */
 c3poCSVinterface::~c3poCSVinterface()
 {
  delete myC3po_;
  delete mesh_;
 }
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* ---------------------------------------------------------------------- */
 void c3poCSVinterface::resetAllFields() const
 {
  deleteC3POfields();
  delete vecName_;
+ 
+  for(int i=0;i<NofFields_;i++)
+     delete csv_[i];
  delete csv_;
  names_.clear();
  Ffieldnames_.clear();
 }
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* ---------------------------------------------------------------------- */
 void c3poCSVinterface::checkMesh() const
 {
  mesh_->checkMesh();
 }
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* ---------------------------------------------------------------------- */
 void c3poCSVinterface::clearMesh() const
 {
  mesh_->clearMesh();
 }
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* ---------------------------------------------------------------------- */
 void c3poCSVinterface::checkParticles() const
 {
  lagrangian_->checkLagrangian();
 }
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* ---------------------------------------------------------------------- */
 void c3poCSVinterface::clearParticles() const
 {
  lagrangian_->deleteParticles();
 }
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* ---------------------------------------------------------------------- */
 void c3poCSVinterface::createFileList() const
 {
 
@@ -159,7 +175,8 @@ void c3poCSVinterface::createFileList() const
 
 }
 
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* ---------------------------------------------------------------------- */
 void c3poCSVinterface::readInput() const
 { 
  
@@ -194,7 +211,8 @@ void c3poCSVinterface::readInput() const
  
 }
 
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* ---------------------------------------------------------------------- */
 void c3poCSVinterface::parseFile() const
 {
   
@@ -457,7 +475,8 @@ void c3poCSVinterface::parseFile() const
  } */
 }
 
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* ---------------------------------------------------------------------- */
 void c3poCSVinterface::registerC3poFields() const
 {
  unsigned int numVF = myC3po_->getVFnamesNumber();
@@ -495,7 +514,52 @@ void c3poCSVinterface::registerC3poFields() const
   }
 }
 
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+/* ---------------------------------------------------------------------- */
+void c3poCSVinterface::createGradients() const
+{
+ 
+ std::vector<std::string> GradScalList_ = myC3po_->getGradientScalarList();
+ 
+  int cell_per_proc = mesh_->NofCells()[0]*mesh_->NofCells()[1]*mesh_->NofCells()[2];
+  //Create Gradients of Scalar Fields
+  for(unsigned int scal = 0; scal < GradScalList_.size(); scal++)
+  {
+   
+   std::string name("grad");
+   
+   
+   for(unsigned int sf=0; sf<Ffieldnames_.size();sf++)
+   {
+    
+    //look for the field name
+    if(GradScalList_[scal].compare(Ffieldnames_[sf])==0)
+    {
+     name.append(GradScalList_[scal].c_str());
+     
+     double * gradx = new double[cell_per_proc];
+     double * grady = new double[cell_per_proc];
+     double * gradz = new double[cell_per_proc];
+     
+     
+     fO_->evaluateGradient(sf,gradx,grady,gradz);
+    
+     myC3po_->registerVF(name.c_str(),gradx,grady,gradz); 
+     
+     gradientFields_.push_back(gradx);
+     gradientFields_.push_back(grady);
+     gradientFields_.push_back(gradz);
+     
+    }
+   
+   }
+  
+  }
+
+  
+
+}
+
+/* ---------------------------------------------------------------------- */
 void c3poCSVinterface::printCSV(int id) const
 {
  
@@ -577,14 +641,24 @@ void c3poCSVinterface::printCSV(int id) const
 
 }
 
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* ---------------------------------------------------------------------- */
 void c3poCSVinterface::deleteFields() const
 {
  myC3po_->resetFields();
+ 
+ for (int i=0;i<(NofFiltFields_+NofFiltVarianceFields_);i++)
+  delete fields_[i];
  delete fields_;
+ 
+ for(unsigned int i=0; i<gradientFields_.size(); i++)
+  delete gradientFields_[i];
+  
+ gradientFields_.clear();
 }
 
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* ---------------------------------------------------------------------- */
 void c3poCSVinterface::createFilterFields(int id) const
 {
  std::string filterName_(myC3po_->getFilterName(id));
@@ -682,31 +756,38 @@ void c3poCSVinterface::createFilterFields(int id) const
  }
 }
 
-// ******************************************
+
+/* ---------------------------------------------------------------------- */
 void c3poCSVinterface::runFilter(int id) const
 {
  
-  createFilterFields(id);  
+  createFilterFields(id);    
   myC3po_->runFilters(id);
+  createGradients();
      
 }
 
-// ******************************************
+
+/* ---------------------------------------------------------------------- */
 void c3poCSVinterface::runSampling() const
 {
   myC3po_->runSampling();
 }
 
-// ******************************************
+
+/* ---------------------------------------------------------------------- */
 void c3poCSVinterface::runBinning() const
 {
   myC3po_->runBinning();
 }
 
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* ---------------------------------------------------------------------- */
 void c3poCSVinterface::runC3po() const
 { 
-int NofFilters_=myC3po_->numberOfFilters();
+ myC3po_->preRunOperations();
+ 
+ int NofFilters_=myC3po_->numberOfFilters();
  for(int id=0;id<NofFilters_;id++)
   {
    runFilter(id);
@@ -715,10 +796,11 @@ int NofFilters_=myC3po_->numberOfFilters();
    runBinning();
    deleteFields(); 
   }
-
+ myC3po_->postRunOperations();
 }
 
-// ******************************************
+
+/* ---------------------------------------------------------------------- */
 void c3poCSVinterface::deleteC3POfields() const
 {
  myC3po_->resetGlobalFields();
@@ -728,7 +810,8 @@ void c3poCSVinterface::deleteC3POfields() const
  dummyZ.clear();
 } 
 
-// ******************************************
+
+/* ---------------------------------------------------------------------- */
 void c3poCSVinterface::FLUENTrunC3PO() const
 {
 

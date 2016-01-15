@@ -113,7 +113,7 @@ void dividedVoidFraction::setvoidFraction(double** const& mask,double**& voidfra
     scalar volume(0);
     scalar cellVol(0);
     scalar scaleVol= weight();
-    scalar scaleRadius = pow(porosity(),1/3);
+    scalar scaleRadius = pow(porosity(),1./3.);
 
     for(int index=0; index< particleCloud_.numberOfParticles(); index++)
     {
@@ -133,7 +133,7 @@ void dividedVoidFraction::setvoidFraction(double** const& mask,double**& voidfra
             cellsPerParticle_[index][0]=1;
             position = particleCloud_.position(index);
             cellID = particleCloud_.cellIDs()[index][0];
-            radius = particleCloud_.radius(index);
+            radius = particleRadius(index);//particleCloud_.radius(index);
             volume = Vp(index,radius,scaleVol);
             radius *= scaleRadius;
             cellVol=0;
@@ -278,6 +278,10 @@ void dividedVoidFraction::setvoidFraction(double** const& mask,double**& voidfra
     }
 }
 
+inline double dividedVoidFraction::particleRadius(label index) const
+{
+    return particleCloud_.radius(index);
+}
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

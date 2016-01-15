@@ -33,6 +33,9 @@ Description
     Li and Mason (2000), A computational investigation of transient heat
     transfer in  pneumatic transport of granular particles, Pow.Tech 112
 
+    This model will put all the source into the explicit coupling term
+    for the fluid-side integration (might be unstable)
+
 Class
     LaEuScalarTemp
 

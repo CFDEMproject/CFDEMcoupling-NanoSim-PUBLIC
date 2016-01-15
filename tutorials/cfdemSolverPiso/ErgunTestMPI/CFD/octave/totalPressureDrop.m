@@ -1,3 +1,4 @@
+%
 close all;
 clear;
 clc;
@@ -6,6 +7,7 @@ clc;
 % simulation data 1
 %====================================%
 rhoG = 10			% density in kg/m3
+%path = '../probes/0/p'; % ext32
 path = '../postProcessing/probes/0/p';
 
 %- nomenclature before 2.4.x

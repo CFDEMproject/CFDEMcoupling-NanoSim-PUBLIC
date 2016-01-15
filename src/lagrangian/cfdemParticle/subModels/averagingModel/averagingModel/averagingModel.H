@@ -122,7 +122,9 @@ public:
             double**& value,
             double**& weight,
             volScalarField& weightField,
-            double**const& mask
+            double**const& mask,
+            double**const& weight2,                  //allows the specification of a 2nd weight field
+            bool      weightWithWeight2=false   //switch to activate 2nd weight field
         ) const = 0;
 
         virtual void setVectorAverage
@@ -131,7 +133,9 @@ public:
             double**& value,
             double**& weight,
             volScalarField& weightField,
-            double**const& mask
+            double**const& mask,
+            double**const& weight2,                  //allows the specification of a 2nd weight field
+            bool      weightWithWeight2=false   //switch to activate 2nd weight field
         ) const = 0;
 
         void undoVectorAverage

@@ -34,7 +34,7 @@ License
 
 #include "selector_container.h"
 #include "filter_base.h"
-#include "string.h"
+#include <string>
 #include "comm.h"
 #include "mesh.h"
 #include "output.h"
@@ -56,7 +56,8 @@ FilterBase::FilterBase(c3po *ptr,const char *name, int myType)
     typeRegion_(myType),
     name_(0),
     cellSize_(NULL),
-    total_filtered_cells_(0)
+    total_filtered_cells_(0),
+    selective_(false)
 {
     int n = strlen(name) + 1;
     name_ = new char[n];
@@ -86,9 +87,9 @@ void FilterBase::init(QJsonObject jsonObj) const
     typeRegion_    = jsonObj["CoordSys"].toInt();
     if (jsonObj["CoordSys"].toInt()==0)
     {
-     filtersize_[0] = jsonObj["x"].toDouble()-c3po_ptr()->meshFilterWidthTolerance(); //avoid problems in case filter width matches cell-cell dist.
-     filtersize_[1] = jsonObj["y"].toDouble()-c3po_ptr()->meshFilterWidthTolerance();
-     filtersize_[2] = jsonObj["z"].toDouble()-c3po_ptr()->meshFilterWidthTolerance();
+     filtersize_[0] = (jsonObj["x"].toDouble()-c3po_ptr()->meshFilterWidthTolerance())/2; //avoid problems in case filter width matches cell-cell dist.
+     filtersize_[1] = (jsonObj["y"].toDouble()-c3po_ptr()->meshFilterWidthTolerance())/2;
+     filtersize_[2] = (jsonObj["z"].toDouble()-c3po_ptr()->meshFilterWidthTolerance())/2;
     }
     else if(jsonObj["CoordSys"].toInt()==1)
     {
@@ -98,6 +99,27 @@ void FilterBase::init(QJsonObject jsonObj) const
     }
 
     filterType_ = jsonObj["CoordSys"].toInt();
+    
+    if(!jsonObj["selective"].isNull())
+    {
+     
+     if(jsonObj["selective"].toBool())
+     {
+      selective_=true;
+      if(jsonObj["max"].isNull())
+       error().throw_error_one(FLERR,"You must specify the max domain size when using selective filters. \n"); 
+      
+      if(jsonObj["min"].isNull())
+       error().throw_error_one(FLERR,"You must specify the min domain size when using selective filters. \n"); 
+      
+      for(int i=0;i<3;i++)
+      {
+       maximum_[i]=jsonObj["max"].toArray()[i].toDouble();
+       minimum_[i]=jsonObj["min"].toArray()[i].toDouble();
+      }
+      
+     }    
+    }
   
 }
 

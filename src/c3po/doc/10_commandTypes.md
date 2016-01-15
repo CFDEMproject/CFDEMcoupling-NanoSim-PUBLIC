@@ -60,7 +60,7 @@ The _selector command type_ needs to be specified using one of the following com
 
 * _cellUnstruct_ 
 
-* _particleANN_
+* _bubble_
 
 * _filter_
 
@@ -78,7 +78,7 @@ In `c3po.input`:
 ...
 
 selector  cellIJK       myCell
-selector  particleANN   myParticle
+selector  bubble        myBubble
 
 selector  filter        myFilter0
 selector  filter        myFilter1

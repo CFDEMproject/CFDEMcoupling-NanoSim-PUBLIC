@@ -29,14 +29,8 @@ fprintf('final pressure drop = %f Pa\n',dpErgun)
 %====================================%
 % simulation data
 %====================================%
-%path = '../probes/0/p'; % 2.1.x
-path = '../postProcessing/probes/0/p'; % 2.2.x
-
-%- nomenclature before 2.4.x
-%columns=3;
-%headerlines=5;
-%data = loaddata(path,columns,headerlines);
-%data=transpose(data);
+%path = '../probes/0/p'; % ext32
+path = '../postProcessing/probes/0/p';
 
 data = load(path);
 [x,y]=size(data);
@@ -74,13 +68,8 @@ Tp = 600;
 Np = 1005;
 lambda = 0.0256;
 
-%path = '../probes/0/T'; % 2.1.x
-path = '../postProcessing/probes/0/T'; % 2.2.x
-%- nomenclature before 2.4.x
-%columns=5;
-%headerlines=5;
-%data = loaddata(path,columns,headerlines);
-%data=transpose(data);
+%path = '../probes/0/T'; % ext32
+path = '../postProcessing/probes/0/T';
 
 data = load(path);
 [x,y]=size(data);

@@ -41,6 +41,8 @@ License
 #include <string>
 #include <vector>
 #include "mpi.h"
+#include <iostream>
+#include "multiphase_FlowBasic.h"
 
 namespace C3PO_NS
 {
@@ -49,25 +51,87 @@ namespace C3PO_NS
   public:
   
   Formula(const char* formula);
-  ~Formula();
+  Formula(const char* formula,const char* normalization);
 
-  void            interpretFormula(int, int) const; //interprets the strings in the formula
+  ~Formula();
+ 
+  void            interpretFormula(int, int) const; //interprets the std::strings in the formula
   std::string     getFormula() const; //just for display
   std::string     getNumerator() const; //just for display
   std::string     getDenominator() const; //just for display
-  void            evaluate(std::vector< std::vector<double>  > *  inputFields_, std::vector< double > * outputField_ );
+
+  void            setLimiterNumerator(double min, double max) const    //set value
+                  { limitNumerator_[0] = min; limitNumerator_[1] = max; limitNumeratorActive_ = true;};
+  double*         getLimitNumerator() const  {return limitNumerator_;}
+
+
+  void            setLimiterDenominator(double min, double max) const  //set value
+                  { limitDenominator_[0] = min; limitDenominator_[1] = max; limitDenominatorActive_ = true;};
+  double*         getLimitDenominator() const  {return limitDenominator_;}
+
+  void            setLimiterSymmetry(bool numerator, bool denominator)
+                  {limitNumeratorSymmetric_ = numerator; limitDenominatorSymmetric_=denominator;};
+
+  void            evaluate( std::vector< std::vector<double>  > * inputFields_, 
+                            std::vector< std::vector<double>* >*  _markers,
+                            std::vector< double > * outputField_,
+                            std::vector< std::vector<double> >*    newMarkers_
+                          );
+
+  void            normalize( std::vector< std::vector<double>  > * inputFields_, 
+                             std::vector< std::vector<double>* >*  _markers,
+                             std::vector< double > * outputField_ 
+                           ); //normalizes the sample
+
+  void            setMultBasicObject(multiphaseFlowBasic* _myBasic ) {basicMultiphaseQty_ = _myBasic;}; //just to hand over pointer to basic multiphase calculator
   
+  
+  void            setMaxNumberOfFields(int maxMark_, int maxScal_,int maxVec_) const;
+  
+
   private:
   
-  mutable std::string raw_formula_;
+  mutable bool              limitNumeratorActive_;
+  mutable bool              limitDenominatorActive_;
+  mutable double            limitNumerator_[2];
+  mutable bool              limitNumeratorSymmetric_;
+  mutable double            limitDenominator_[2];
+  mutable bool              limitDenominatorSymmetric_;
+  mutable bool              normalize_;
+  
+  mutable int               NofVecSample_ ;
+  mutable int               NofScalSample_;
+  mutable int               NofMarkSample_;
+
+  mutable std::string       raw_formula_;
+  mutable std::string       normalization_;
+  
   mutable std::vector<char> formula_;
   mutable std::vector<char> numerator_; 
   mutable std::vector<char> denominator_;   //by default empty
   
+  mutable std::vector<int>  tmpIndex_;
+  
+  mutable multiphaseFlowBasic* basicMultiphaseQty_;
+  
+  mutable std::vector<int>  normalizationId_;
+  mutable std::vector<char> normalizationClass_;
+  mutable char              normalizationType_;
+  
+  
+
   void ParseFormula() const;
   void CheckFormula() const;
+  void CheckNormalization(int, int) const;
   
   void throw_error(std::string function,std::string msg_) const;
+  bool testLimits(double& value, double* limits, bool& isSymmetric) const;
+  
+  double getValueForNormalization(int id,
+                                  int index,
+                                  std::vector< std::vector<double> > *  _sample,
+                                  std::vector< std::vector<double>* >*  _markers 
+                                  ) const;
   
  };
 }

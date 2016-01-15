@@ -60,6 +60,7 @@ runningStat::runningStat()
    MPI_Comm_size(MPI_COMM_WORLD,&nprocs_);
 
    binCentersDumped_ = false;
+   
 
 } 
 
@@ -68,6 +69,10 @@ runningStat::~runningStat()
     delete count_;
     delete run_mean_;
     delete run_var_;
+    
+    delete bufCount;
+    delete bufMean;
+    delete bufVar;
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -80,6 +85,12 @@ void runningStat::allocateMem(int _size)
     create<double>(variance_, size);
 
     clear();
+    
+    create< int  >(bufCount,  nprocs_*size);
+    create<double>(bufMean,   nprocs_*size);
+    create<double>(bufVar,    nprocs_*size);
+   
+
 
 //    printf("running stats: mem allocated! \n");
 }
@@ -96,20 +107,74 @@ void runningStat::initialize(int size, const char* dumpFormat_,  const char * di
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 void runningStat::computeGlobals(bool overwrite)
 {
- int    bufCount;
- double bufMean;
- double bufVar;
+ 
  double* var_=variance();
+
  std::string f(file_);
  
  //MPI_Barrier(MPI_COMM_WORLD);
-
+ 
+ 
+ 
+ int displs[nprocs_];
+ int recvCounts[nprocs_];
+ 
+ for(int i=0;i<nprocs_;i++)
+ {
+  recvCounts[i]=size;
+  displs[i]=i*size;
+ }
+   
+   //Garher data in proc 0
+   MPI_Gatherv(&count_[0], size, MPI_INT,
+               &bufCount[0], recvCounts, displs,
+                MPI_INT, 0, MPI_COMM_WORLD);
+   
+   MPI_Gatherv(&run_mean_[0], size, MPI_DOUBLE,
+               &bufMean[0], recvCounts, displs,
+                MPI_DOUBLE, 0, MPI_COMM_WORLD);
+   
+   MPI_Gatherv(&var_[0], size, MPI_DOUBLE,
+               &bufVar[0], recvCounts, displs,
+                MPI_DOUBLE, 0, MPI_COMM_WORLD);
+  
+ 
 #ifdef H5_LIB
 if(!dumpFormat.compare("hdf5"))
 {
    
-  double globalStat[size][3];
+ double globalStat[size][3];
+ 
+  //just for proc 0 
+  if(me_==0)
+  {
+   //for every bin
+   for(int i=0;i<size;i++)
+   {
+     globalStat[i][0]=0.;
+     globalStat[i][1]=0.;
+     globalStat[i][2]=0.;
+    
+    //sum processor values
+    for(int p=0;p<nprocs_;p++)
+    {
+     
+     globalStat[i][0]+=bufCount[i+p*size];                                           // Ctot= C1 + C2 + C3...
+     globalStat[i][1]+=bufCount[i+p*size]*bufMean[i+p*size];                                    // Ctot*Mtot= C1*M1 + C2*M2 + C3*M3 +....
+        
+     globalStat[i][2]+=bufCount[i+p*size]*(bufVar[i+p*size] + bufMean[i+p*size]*bufMean[i+p*size]);     // Ctot*(Mtot^2 + Vtot) = C1(V1 + M1^2) + C2(... 
+    }
+    
+    //check if != 0
+    if(globalStat[i][0]>0)
+     {
+      globalStat[i][1]=globalStat[i][1]/globalStat[i][0];
+      globalStat[i][2]=globalStat[i][2]/globalStat[i][0] - globalStat[i][1]*globalStat[i][1];
+     }
+   } 
+  }
 
+  
   
   if(me_==0) 
   {
@@ -125,62 +190,50 @@ if(!dumpFormat.compare("hdf5"))
       f.append(buf);
       createH5file(f);
      }
-  }
-   //MPI_Barrier(MPI_COMM_WORLD);
-   for(int i=0;i<size;i++)
-    { 
-      globalStat[i][0]=0.;
-      globalStat[i][1]=0.;
-      globalStat[i][2]=0.;
-      
-      for(int j=0;j<nprocs_;j++)
-      {
-       if(me_==j)
-        MPI_Send(&count_[i],1, MPI_INT, 0,0, MPI_COMM_WORLD);
-       if (me_==0)       
-        MPI_Recv(&bufCount, 1, MPI_INT, j,0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-       if(me_==j)
-        MPI_Send(&run_mean_[i],1, MPI_DOUBLE, 0,0, MPI_COMM_WORLD);
-       if (me_==0)       
-        MPI_Recv(&bufMean, 1, MPI_DOUBLE, j,0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-       if(me_==j)
-        MPI_Send(&var_[i],1, MPI_DOUBLE, 0,0, MPI_COMM_WORLD);     
-       if (me_==0)       
-        MPI_Recv(&bufVar, 1, MPI_DOUBLE, j,0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-
-       if(me_==0) 
-       {
-        globalStat[i][0]+=bufCount;                                           // Ctot= C1 + C2 + C3...
-        globalStat[i][1]+=bufCount*bufMean;                                    // Ctot*Mtot= C1*M1 + C2*M2 + C3*M3 +....
-        
-        
-        globalStat[i][2]+=bufCount*(bufVar + bufMean*bufMean);     // Ctot*(Mtot^2 + Vtot) = C1(V1 + M1^2) + C2(... 
-    
-       }
-      }
-     
-    if(me_==0) 
-    {
-     if(globalStat[i][0]>0)
-     {
-      globalStat[i][1]=globalStat[i][1]/globalStat[i][0];
-      globalStat[i][2]=globalStat[i][2]/globalStat[i][0] - globalStat[i][1]*globalStat[i][1];
-     }
-    } 
-   }
-  if(me_==0)
-  ThreeArrayToH5(f, OpName_, globalStat, size ); 
-    
+     ThreeArrayToH5(f, OpName_, globalStat, size ); 
+  
+     }    
 }  //end HDF5
  
 #endif
 
 if(!dumpFormat.compare("json"))
 {
-  double globalStat[3][size];
-   
+ 
   std::vector<double*>      datavec;
   std::vector<std::string>  namevec;
+ 
+  double globalStat[3][size];
+ 
+  //just for proc 0 
+  if(me_==0)
+  {
+   //for every bin
+   for(int i=0;i<size;i++)
+   {
+     globalStat[0][i]=0.;
+     globalStat[1][i]=0.;
+     globalStat[2][i]=0.;
+     
+    //sum processor values
+    for(int p=0;p<nprocs_;p++)
+    {
+     
+     globalStat[0][i]+=bufCount[i+p*size];                                           // Ctot= C1 + C2 + C3...
+     globalStat[1][i]+=bufCount[i+p*size]*bufMean[i+p*size];                                    // Ctot*Mtot= C1*M1 + C2*M2 + C3*M3 +....
+        
+     globalStat[2][i]+=bufCount[i+p*size]*(bufVar[i+p*size] + bufMean[i+p*size]*bufMean[i+p*size]);     // Ctot*(Mtot^2 + Vtot) = C1(V1 + M1^2) + C2(... 
+    }
+    
+    //check if != 0
+    if(globalStat[0][i]>0)
+     {
+      globalStat[1][i]=globalStat[1][i]/globalStat[0][i];
+      globalStat[2][i]=globalStat[2][i]/globalStat[0][i] - globalStat[1][i]*globalStat[1][i];
+     }
+   } 
+  }
+
   
   if(me_==0) 
   {
@@ -192,51 +245,7 @@ if(!dumpFormat.compare("json"))
     sprintf(buf,"_global_time%s.json",time_.c_str());
     f.append(buf);
    } 
-  }
- 
-   for(int i=0;i<size;i++)
-    { 
-      globalStat[0][i]=0.;
-      globalStat[1][i]=0.;
-      globalStat[2][i]=0.;
-      
-      for(int j=0;j<nprocs_;j++)
-      {
-       if(me_==j)
-        MPI_Send(&count_[i],1, MPI_INT, 0,0, MPI_COMM_WORLD);
-       if (me_==0)       
-        MPI_Recv(&bufCount, 1, MPI_INT, j,0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-       if(me_==j)
-        MPI_Send(&run_mean_[i],1, MPI_DOUBLE, 0,0, MPI_COMM_WORLD);
-       if (me_==0)       
-        MPI_Recv(&bufMean, 1, MPI_DOUBLE, j,0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-       if(me_==j)
-        MPI_Send(&var_[i],1, MPI_DOUBLE, 0,0, MPI_COMM_WORLD);     
-       if (me_==0)       
-        MPI_Recv(&bufVar, 1, MPI_DOUBLE, j,0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-
-       if(me_==0) 
-       {
-        globalStat[0][i]+=bufCount;                               // Ctot= C1 + C2 + C3...
-        globalStat[1][i]+=bufCount*bufMean;                       // Ctot*Mtot= C1*M1 + C2*M2 + C3*M3 +....
-        
-        
-        globalStat[2][i]+=bufCount*(bufVar + bufMean*bufMean);    // Ctot*(Mtot^2 + Vtot) = C1(V1 + M1^2) + C2(... 
-    
-       }
-      }
-     
-    if(me_==0) 
-    {
-     if(globalStat[0][i]>0)
-     {
-      globalStat[1][i]=globalStat[1][i]/globalStat[0][i];
-      globalStat[2][i]=globalStat[2][i]/globalStat[0][i] - globalStat[1][i]*globalStat[1][i];
-     }
-   }
-  }
-  if(me_==0) 
-  {
+   
    datavec.push_back(globalStat[0]);
    namevec.push_back("count");
    datavec.push_back(globalStat[1]);

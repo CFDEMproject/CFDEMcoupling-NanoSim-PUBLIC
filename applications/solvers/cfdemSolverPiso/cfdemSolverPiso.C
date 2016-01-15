@@ -38,14 +38,17 @@ Description
 #include "singlePhaseTransportModel.H"
 
 #include "OFversion.H"
-#if defined(versionDev)
-    #include "pisoControl.H"
+#if defined(version30)
     #include "turbulentTransportModel.H"
+    #include "pisoControl.H"
 #else
     #include "turbulenceModel.H"
 #endif
 #include "fixedFluxPressureFvPatchScalarField.H"
 #include "cfdemCloud.H"
+#if defined(anisotropicRotation)
+    #include "cfdemCloudRotation.H"
+#endif
 #include "implicitCouple.H"
 #include "clockModel.H"
 #include "smoothingModel.H"
@@ -58,15 +61,20 @@ int main(int argc, char *argv[])
     #include "setRootCase.H"
     #include "createTime.H"
     #include "createMesh.H"
-    #if defined(versionDev)
+    #if defined(version30)
         pisoControl piso(mesh);
+        #include "createTimeControls.H"
     #endif
     #include "createFields.H"
     #include "initContinuityErrs.H"
 
     // create cfdemCloud
     #include "readGravitationalAcceleration.H"
-    cfdemCloud particleCloud(mesh);
+    #if defined(anisotropicRotation)
+        cfdemCloudRotation particleCloud(mesh);
+    #else
+        cfdemCloud particleCloud(mesh);
+    #endif
     #include "checkModelType.H"
 
     // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -77,12 +85,14 @@ int main(int argc, char *argv[])
 
         Info<< "Time = " << runTime.timeName() << nl << endl;
 
-        #if defined(versionDev)
+        #if defined(version30)
             #include "readTimeControls.H"
+            #include "CourantNo.H"
+            #include "setDeltaT.H"
         #else
             #include "readPISOControls.H"
+            #include "CourantNo.H"
         #endif
-        #include "CourantNo.H"
 
         // do particle stuff
         particleCloud.clockM().start(2,"Coupling");
@@ -121,10 +131,11 @@ int main(int argc, char *argv[])
                 );
 
                 UEqn.relax();
-                #if defined(versionDev)
-                if (piso.momentumPredictor())
+
+                #if defined(version30)
+                    if (piso.momentumPredictor())
                 #else
-                if (momentumPredictor)
+                    if (momentumPredictor)
                 #endif
                 {
                     if (modelType=="B" || modelType=="Bfull")
@@ -134,11 +145,11 @@ int main(int argc, char *argv[])
                 }
 
                 // --- PISO loop
-                #if defined(versionDev)
-                while (piso.correct())
+                #if defined(version30)
+                    while (piso.correct())
                 #else
-                int nCorrSoph = nCorr + 5 * pow((1-particleCloud.dataExchangeM().timeStepFraction()),1);
-                for (int corr=0; corr<nCorrSoph; corr++)
+                    int nCorrSoph = nCorr + 5 * pow((1-particleCloud.dataExchangeM().timeStepFraction()),1);
+                    for (int corr=0; corr<nCorrSoph; corr++)
                 #endif
                 {
                     volScalarField rUA = 1.0/UEqn.A();
@@ -150,11 +161,11 @@ int main(int argc, char *argv[])
                     U = rUA*UEqn.H();
 
                     #ifdef version23
-                    phi = ( fvc::interpolate(U*voidfraction) & mesh.Sf() )
-                        + rUAfvoidfraction*fvc::ddtCorr(U, phi);
+                        phi = ( fvc::interpolate(U*voidfraction) & mesh.Sf() )
+                            + rUAfvoidfraction*fvc::ddtCorr(U, phi);
                     #else
-                    phi = ( fvc::interpolate(U*voidfraction) & mesh.Sf() )
-                        + fvc::ddtPhiCorr(rUAvoidfraction, U, phi);
+                        phi = ( fvc::interpolate(U*voidfraction) & mesh.Sf() )
+                            + fvc::ddtPhiCorr(rUAvoidfraction, U, phi);
                     #endif
                     surfaceScalarField phiS(fvc::interpolate(Us*voidfraction) & mesh.Sf());
                     surfaceScalarField phiGes = phi + rUAf*(fvc::interpolate(Ksl/rho) * phiS);
@@ -163,34 +174,36 @@ int main(int argc, char *argv[])
                         rUAvoidfraction = volScalarField("(voidfraction2|A(U))",rUA*voidfraction*voidfraction);
 
                     // Update the fixedFluxPressure BCs to ensure flux consistency
-                    if (modelType=="A")
-                    {
-                        surfaceScalarField voidfractionf(fvc::interpolate(voidfraction));
-                        setSnGrad<fixedFluxPressureFvPatchScalarField>
-                        (
-                            p.boundaryField(),
+                    #ifndef versionExt32
+                        if (modelType=="A")
+                        {
+                            surfaceScalarField voidfractionf(fvc::interpolate(voidfraction));
+                            setSnGrad<fixedFluxPressureFvPatchScalarField>
                             (
-                                phi.boundaryField()
-                              - (mesh.Sf().boundaryField() & U.boundaryField())
-                            )/(mesh.magSf().boundaryField()*rUAf.boundaryField()*voidfractionf.boundaryField())
-                        );
-                    }else
-                    {
-                        setSnGrad<fixedFluxPressureFvPatchScalarField>
-                        (
-                            p.boundaryField(),
+                                p.boundaryField(),
+                                (
+                                    phi.boundaryField()
+                                  - (mesh.Sf().boundaryField() & U.boundaryField())
+                                )/(mesh.magSf().boundaryField()*rUAf.boundaryField()*voidfractionf.boundaryField())
+                            );
+                        }else
+                        {
+                            setSnGrad<fixedFluxPressureFvPatchScalarField>
                             (
-                                phi.boundaryField()
-                              - (mesh.Sf().boundaryField() & U.boundaryField())
-                            )/(mesh.magSf().boundaryField()*rUAf.boundaryField())
-                        );
-                    }
+                                p.boundaryField(),
+                                (
+                                    phi.boundaryField()
+                                  - (mesh.Sf().boundaryField() & U.boundaryField())
+                                )/(mesh.magSf().boundaryField()*rUAf.boundaryField())
+                            );
+                        }
+                    #endif
 
                     // Non-orthogonal pressure corrector loop
-                    #if defined(versionDev)
-                    while (piso.correctNonOrthogonal())
+                    #if defined(version30)
+                        while (piso.correctNonOrthogonal())
                     #else
-                    for (int nonOrth=0; nonOrth<=nNonOrthCorr; nonOrth++)
+                        for (int nonOrth=0; nonOrth<=nNonOrthCorr; nonOrth++)
                     #endif
                     {
                         // Pressure corrector
@@ -200,19 +213,28 @@ int main(int argc, char *argv[])
                         );
                         pEqn.setReference(pRefCell, pRefValue);
 
-                        #if defined(versionDev)
-                        pEqn.solve(mesh.solver(p.select(piso.finalInnerIter())));
+                        #if defined(version30)
+                            pEqn.solve(mesh.solver(p.select(piso.finalInnerIter())));
+                            if (piso.finalNonOrthogonalIter())
+                            {
+                                phiGes -= pEqn.flux();
+                                phi = phiGes;
+                            }
                         #else
-                        if( corr == nCorr-1 && nonOrth == nNonOrthCorr )
-                            pEqn.solve(mesh.solver("pFinal"));
-                        else
-                            pEqn.solve();
+                            if( corr == nCorr-1 && nonOrth == nNonOrthCorr )
+                                #if defined(versionExt32)
+                                    pEqn.solve(mesh.solutionDict().solver("pFinal"));
+                                #else
+                                    pEqn.solve(mesh.solver("pFinal"));
+                                #endif
+                            else
+                                pEqn.solve();
 
-                        if (nonOrth == nNonOrthCorr)
-                        {
-                            phiGes -= pEqn.flux();
-                            phi = phiGes;
-                        }
+                            if (nonOrth == nNonOrthCorr)
+                            {
+                                phiGes -= pEqn.flux();
+                                phi = phiGes;
+                            }
                         #endif
 
                     } // end non-orthogonal corrector loop

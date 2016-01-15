@@ -45,6 +45,7 @@ Description
 #include  <vector>
 #include "mesh_check.h"
 #include "lagrangian.h"
+#include "CSVfieldOperations.h"
 
 namespace C3PO_NS
 {
@@ -93,6 +94,8 @@ namespace C3PO_NS
   
   void resetAllFields() const;
   
+  void createGradients() const;
+  
   
   
   c3po* myC3po_;
@@ -138,6 +141,10 @@ namespace C3PO_NS
   mutable std::vector<double*> dummyZ;
   
   mutable std::vector<std::string> fileList_;
+  
+  mutable std::vector<double*>          gradientFields_;
+  
+  CSVfieldOperations*              fO_;
   
  };
 }

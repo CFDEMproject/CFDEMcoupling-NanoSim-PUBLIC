@@ -35,6 +35,7 @@ License
 #include "c3po_OF_interface.H"
 #include "fvMesh.H"
 #include "polyMesh.H"
+#include "fvCFD.H"
 #include "c3po.h"
 #include "fvMatrices.H"
 #include "geometricOneField.H"
@@ -46,7 +47,9 @@ License
 
 using namespace C3PO_NS;
 
-// * * * * * * * * * * * * * * * * Constructors * * * * * * * * * * * * * * //
+/* ----------------------------------------------------------------------
+   c3poOFInterface Constructors
+------------------------------------------------------------------------- */
 c3poOFInterface::c3poOFInterface
 (
 // const Foam::keyType& key,
@@ -82,14 +85,17 @@ c3poOFInterface::c3poOFInterface
 
 }
 
-// * * * * * * * * * * * * * * * * Destructor * * * * * * * * * * * * * * //
+/* ----------------------------------------------------------------------
+   c3poOFInterface Destructors
+------------------------------------------------------------------------- */
 c3poOFInterface::~c3poOFInterface()
 {
     deleteParticles();
     delete myC3po_;
     delete mCheck_;
 }
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+/* ---------------------------------------------------------------------- */
 void c3poOFInterface::run()
 {
  //gather field data and send to c3po
@@ -102,7 +108,8 @@ void c3poOFInterface::run()
  deleteC3POfields();
  
 }
-//* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+/* ---------------------------------------------------------------------- */
 void c3poOFInterface::runIB()
 {
  //gather field data and send to c3po
@@ -116,11 +123,15 @@ void c3poOFInterface::runIB()
  //clean everything
  MPI_Barrier(MPI_COMM_WORLD);
  deleteC3POfields();
+
  
 }
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+/* ---------------------------------------------------------------------- */
 void c3poOFInterface::registerAllFields()
 {
+ 
+
  int numVF = myC3po_->getVFnamesNumber();
  for(int i=0;i<numVF;i++)
   registerVectorField(&(const_cast<volVectorField&>(mesh_.lookupObject<volVectorField> (myC3po_->getVFnames(i).c_str()))),
@@ -136,19 +147,155 @@ void c3poOFInterface::registerAllFields()
   registerC3POfields();
 
 }
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+
+/* ---------------------------------------------------------------------- */
+void c3poOFInterface::createGradients()
+{
+  std::vector<std::string> GradScalList_ = myC3po_->getGradientScalarList();
+  std::vector<std::string> GradVecList_  = myC3po_->getGradientVectorList();
+  std::vector<std::string> shearList_  = myC3po_->getShearRateList();
+  
+  //Create Gradients of Scalar Fields
+  for(unsigned int scal = 0; scal < GradScalList_.size(); scal++)
+  {
+   
+   std::string name("grad");
+   
+   
+   for(unsigned int sf=0; sf<nameScalarFieldsC3PO_.size();sf++)
+   {
+    
+    //look for the field name
+    if(GradScalList_[scal].compare(nameScalarFieldsC3PO_[sf])==0)
+    {
+     name.append(GradScalList_[scal].c_str());
+    // scalarFieldsC3PO_[sf]->correctBoundaryConditions();
+     volVectorField * gradField = new volVectorField(name.c_str(), fvc::grad( *scalarFieldsC3PO_[sf]) );
+     vectorFieldsC3PO_.push_back(gradField);
+     nameVectorFieldsC3PO_.push_back(name);
+     myC3po_->registerVF(name.c_str(),&((*gradField)[0].component(0)),&((*gradField)[0].component(1)),&((*gradField)[0].component(2)),3); 
+     
+    }
+   
+   }
+  
+  }
+
+  //Create Gradients of Vector Fields
+  for(unsigned int vec = 0; vec < GradVecList_.size(); vec++)
+  {
+   
+   std::string name("grad");
+   
+   for(unsigned int vf=0; vf<nameVectorFieldsC3PO_.size();vf++)
+   {
+   
+    if(GradVecList_[vec].compare(nameVectorFieldsC3PO_[vf])==0)
+    {
+     
+     name.append(GradVecList_[vec].c_str());
+     
+     volVectorField * baseField =  vectorFieldsC3PO_[vf];
+     
+     std::string coordName(name + "X");
+     //baseField->correctBoundaryConditions();
+     volVectorField * vecFieldx = new volVectorField(coordName.c_str(), fvc::grad(baseField->component(0)) );
+     vectorFieldsC3PO_.push_back(vecFieldx);
+     nameVectorFieldsC3PO_.push_back(coordName);
+     myC3po_->registerVF(coordName.c_str(),&((*vecFieldx)[0].component(0)),&((*vecFieldx)[0].component(1)),&((*vecFieldx)[0].component(2)),3); 
+     
+     coordName.assign(name + "Y");
+     volVectorField * vecFieldy = new volVectorField(coordName.c_str(), fvc::grad(baseField->component(1)) );
+     vectorFieldsC3PO_.push_back(vecFieldy);
+     nameVectorFieldsC3PO_.push_back(coordName);
+     myC3po_->registerVF(coordName.c_str(),&((*vecFieldy)[0].component(0)),&((*vecFieldy)[0].component(1)),&((*vecFieldy)[0].component(2)),3); 
+     
+     
+     coordName.assign(name + "Z");
+     volVectorField * vecFieldz = new volVectorField(coordName.c_str(), fvc::grad(baseField->component(2)) );
+     vectorFieldsC3PO_.push_back(vecFieldz);
+     nameVectorFieldsC3PO_.push_back(coordName);
+     myC3po_->registerVF(coordName.c_str(),&((*vecFieldz)[0].component(0)),&((*vecFieldz)[0].component(1)),&((*vecFieldz)[0].component(2)),3); 
+     
+    
+    }
+   } 
+  }
+
+  //Create shear rates from vector fields
+  for(unsigned int sr = 0; sr < shearList_.size(); sr++)
+  {
+   
+   std::string name("shearRate");
+   
+   for(unsigned int vf=0; vf<nameVectorFieldsC3PO_.size();vf++)
+   {
+   
+    if(shearList_[sr].compare(nameVectorFieldsC3PO_[sr])==0)
+    {
+     
+     name.append(GradVecList_[sr].c_str());
+     
+     volVectorField * baseField =  vectorFieldsC3PO_[sr];
+     
+     vectorField grads_[3];
+     
+     grads_[0] =  fvc::grad(baseField->component(0));
+     grads_[1]  =  fvc::grad(baseField->component(1));
+     grads_[2]  =  fvc::grad(baseField->component(2));
+     
+     volScalarField * shearStress_ = new volScalarField(name.c_str(),baseField->component(0));
+     
+     
+     
+     shearStress_->internalField()=0;
+     
+    
+     forAll(mesh_.cells(),cellI)
+     {
+      double temp_=0; 
+      for(int i=0;i<3;i++)
+       for(int j=0;j<3;j++)
+        {
+         
+         temp_ += grads_[i][cellI].component(j)*grads_[i][cellI].component(j);
+        }
+
+        temp_= std::pow(temp_,0.5);
+        
+        (*shearStress_)[cellI]=temp_;
+      }
+     
+     scalarFieldsC3PO_.push_back(shearStress_);
+     nameScalarFieldsC3PO_.push_back(name);
+    
+      myC3po_->registerSF(name,&((*shearStress_)[0]));
+    
+     
+    
+    }
+   } 
+  }
+
+
+}
+
+/* ---------------------------------------------------------------------- */
 void c3poOFInterface::registerVectorField( volVectorField * field, const char * name)
 {
   vectorFieldsIn_.push_back(field);
   nameVectorFieldsIn_.push_back(name);
 }
 
+/* ---------------------------------------------------------------------- */
 void c3poOFInterface::registerScalarField( volScalarField * field, const char * name)
 {
   scalarFieldsIn_.push_back(field);
   nameScalarFieldsIn_.push_back(name);
 }
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* ---------------------------------------------------------------------- */
 void c3poOFInterface::registerC3POfields()
 {    
     unsigned int numVF = myC3po_->getVFnamesNumber();
@@ -171,7 +318,8 @@ void c3poOFInterface::registerC3POfields()
    myC3po_->setTime(mesh_.time().timeName());
 } 
 
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* ---------------------------------------------------------------------- */
 void c3poOFInterface::deleteC3POfields()
 {    
   myC3po_->resetGlobalFields();
@@ -185,7 +333,8 @@ void c3poOFInterface::deleteC3POfields()
   
 }
 
-//* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
+
+/* ---------------------------------------------------------------------- */
 void c3poOFInterface::writeFields() 
 {
  if(!myC3po_->writeFields()) return;
@@ -201,7 +350,8 @@ void c3poOFInterface::writeFields()
   scalarFieldsC3PO_[i]->write(); 
  }
 }
-//* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+/* ---------------------------------------------------------------------- */
 void c3poOFInterface::deleteFields() 
 {
  myC3po_->resetFields();
@@ -214,9 +364,13 @@ void c3poOFInterface::deleteFields()
   vectorFieldsC3PO_.clear();
   scalarFieldsC3PO_.clear(); 
   
+  nameScalarFieldsC3PO_.clear();
+  nameVectorFieldsC3PO_.clear();
+       
 
 }  
-//* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
+
+/* ---------------------------------------------------------------------- */
 void c3poOFInterface::createFilteredFields(int id)
 {
  std::string filterName_(myC3po_->getFilterName(id));
@@ -225,8 +379,11 @@ void c3poOFInterface::createFilteredFields(int id)
   {
    std::vector<std::string> vectorFields_(myC3po_->vectorFTF(f_));
    std::vector<std::string> scalarFields_(myC3po_->scalarFTF(f_));
+   std::vector<std::string> vectorVariance(myC3po_->vectorFTFVariance(f_));
+   std::vector<std::string> scalarVariance(myC3po_->scalarFTFVariance(f_));
    std::string OpName_(myC3po_->getOpFilterName(f_));
    for (unsigned int n=0; n<vectorFieldsIn_.size();n++) 
+   {
     for (unsigned int i=0; i<vectorFields_.size();i++)
      if(vectorFields_[i].compare(nameVectorFieldsIn_[n])==0)
      {   
@@ -238,14 +395,35 @@ void c3poOFInterface::createFilteredFields(int id)
          volVectorField *v_= new volVectorField( fieldName_.c_str(),*vectorFieldsIn_[n]);
         
          vectorFieldsC3PO_.push_back(v_);
+         nameVectorFieldsC3PO_.push_back(fieldName_);
+         myC3po_->registerVF(nameVectorFieldsIn_[n],&((*v_)[0].component(0)),&((*v_)[0].component(1)),&((*v_)[0].component(2)),3); 
+      }
+    
+    for (unsigned int i=0; i<vectorVariance.size();i++)
+     if(vectorVariance[i].compare(nameVectorFieldsIn_[n])==0)
+     {   
+         char buf[26];
+         sprintf(buf,"_var%i_",i);
+         std::string fieldName_(nameVectorFieldsIn_[n]); 
+         fieldName_.append("_");
+         fieldName_.append(OpName_.c_str()); 
+         fieldName_.append(buf);
+         fieldName_.append(filterName_.c_str());      
+         volVectorField *v_= new volVectorField( fieldName_.c_str(),*vectorFieldsIn_[n]);
+        
+         vectorFieldsC3PO_.push_back(v_);
+         nameVectorFieldsC3PO_.push_back(fieldName_);
          
          myC3po_->registerVF(nameVectorFieldsIn_[n],&((*v_)[0].component(0)),&((*v_)[0].component(1)),&((*v_)[0].component(2)),3); 
       }  
-       
+   }    
+   
    for (unsigned int n=0; n<scalarFieldsIn_.size();n++)
+   {
     for (unsigned int i=0; i<scalarFields_.size();i++)
      if(scalarFields_[i].compare(nameScalarFieldsIn_[n])==0)
      {
+       
        std::string fieldName_(nameScalarFieldsIn_[n]);
        fieldName_.append("_");
        fieldName_.append(OpName_.c_str()); 
@@ -254,34 +432,64 @@ void c3poOFInterface::createFilteredFields(int id)
        volScalarField *s_=new volScalarField( fieldName_.c_str(),*scalarFieldsIn_[n]);
         
        scalarFieldsC3PO_.push_back(s_);
+       nameScalarFieldsC3PO_.push_back(fieldName_);
          
        myC3po_->registerSF(nameScalarFieldsIn_[n],&((*s_)[0]));
      }  
-  
+    
+    for (unsigned int i=0; i<scalarVariance.size();i++)
+     if(scalarVariance[i].compare(nameScalarFieldsIn_[n])==0)
+     {
+       char buf[26];
+         sprintf(buf,"_var%i_",i);
+         
+       
+       std::string fieldName_(nameScalarFieldsIn_[n]);
+       fieldName_.append("_");
+       fieldName_.append(OpName_.c_str()); 
+       fieldName_.append(buf);
+       fieldName_.append(filterName_.c_str());        
+       volScalarField *s_=new volScalarField( fieldName_.c_str(),*scalarFieldsIn_[n]);
+        
+       scalarFieldsC3PO_.push_back(s_);
+       nameScalarFieldsC3PO_.push_back(fieldName_);
+      
+         
+       myC3po_->registerSF(nameScalarFieldsIn_[n],&((*s_)[0]));
+     }  
+    
+    
+    }
   }
 }
-//------------------------------------------------------------------//
 
+/* ---------------------------------------------------------------------- */
 void c3poOFInterface::runFilter(int id)
 {   
     createFilteredFields(id);
     myC3po_->runFilters(id);
+    
+    //Create Gradient fields if necessary
+    createGradients();
 }
 
-// ******************************************
+
+/* ---------------------------------------------------------------------- */
 void c3poOFInterface::runSampling() 
 { 
    myC3po_->runSampling();
 }
 
 
-// ******************************************
+
+/* ---------------------------------------------------------------------- */
 void c3poOFInterface::runBinning() 
 {
     myC3po_->runBinning();
 }
 
-//*************************************************
+
+/* ---------------------------------------------------------------------- */
 void c3poOFInterface::runC3po() 
 {
  int NofFilters_=myC3po_->numberOfFilters();
@@ -297,8 +505,11 @@ void c3poOFInterface::runC3po()
    MPI_Barrier(MPI_COMM_WORLD);
    deleteFields();
   }
+  
+ myC3po_->postRunOperations();
 } 
-//************************************************
+
+/* ---------------------------------------------------------------------- */
 void c3poOFInterface::processParticles()
 {
  //Every processor must hold all particle positions and forces
@@ -388,14 +599,22 @@ void c3poOFInterface::processParticles()
    
 
  
-  myC3po_->addParticle( pard_[i], parPos_[i], &parVel_[i][0], &parForceTmp_[i], parTorque_[i]);
+  myC3po_->addParticle(particlesName_, pard_[i], parPos_[i], &parVel_[i][0], &parForceTmp_[i], parTorque_[i]);
   
 
  }
   
 }
-//************************************************
-void c3poOFInterface::registerParticleIB(int id_, double m, double* pos_, double* vel_, std::vector< double*> force_,double* torque)
+
+/* ---------------------------------------------------------------------- */
+void c3poOFInterface::registerParticleIB( std::string          groupName,  //Name of the corresponding group
+                                          int                        id_,  //Particle id
+                                          double                       m,  //Particle radius
+                                          double*                   pos_,  //Particle position
+                                          double*                   vel_,  //Particle velocity
+                                          std::vector< double* >  force_,  //Vector containing particle forces
+                                          double*                 torque   //Particle torque
+                                        )
 {
   std::vector<int>::iterator it;
   
@@ -403,7 +622,7 @@ void c3poOFInterface::registerParticleIB(int id_, double m, double* pos_, double
   for(it = particleID_.begin(); it != particleID_.end(); it++)
    if(id_==*it)
     return;
-  
+  particlesName_=groupName;
   particleID_.push_back(id_);
   parVel_.push_back(vel_);
   pard_.push_back(m);
@@ -412,8 +631,16 @@ void c3poOFInterface::registerParticleIB(int id_, double m, double* pos_, double
   parTorque_.push_back(torque);  
  
 }
-//***********************************************
-void c3poOFInterface::registerParticle(int id_, double m, double* pos_, double* vel_, std::vector< double*> * force_, double* torque)
+
+/* ---------------------------------------------------------------------- */
+void c3poOFInterface::registerParticle( std::string          groupName,  //Name of the corresponding group
+                                        int                        id_,  //Particle id
+                                        double                       m,  //Particle radius
+                                        double*                   pos_,  //Particle position
+                                        double*                   vel_,  //Particle velocity
+                                        std::vector< double*> * force_,  //Vector containing particle forces
+                                        double*                 torque   //Particle torque
+                                      )
 {
  std::vector<int>::iterator it;
  
@@ -430,9 +657,11 @@ void c3poOFInterface::registerParticle(int id_, double m, double* pos_, double* 
    return;
 
  
- myC3po_->addParticle( m, pos_, vel_, force_, torque);
+ myC3po_->addParticle(groupName, m, pos_, vel_, force_, torque);
  
 }
+
+/* ---------------------------------------------------------------------- */
 
 void c3poOFInterface::deleteParticles()
 {

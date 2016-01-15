@@ -140,6 +140,8 @@ public:
         void applyDebugSettings(bool) const;
 
         virtual void setForce() const = 0;
+        
+        virtual void multiphaseTurbulence(volScalarField&, bool) const;
 
         //tmp<volScalarField> provideScalarField();
 

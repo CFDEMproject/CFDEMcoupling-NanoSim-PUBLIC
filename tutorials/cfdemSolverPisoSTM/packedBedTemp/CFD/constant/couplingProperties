@@ -103,6 +103,11 @@ scalarGeneralExchangeProps
     (
         1e-5
     );
+    //parameters for the vapor pressure model
+    parameterVap
+    (
+        0
+    );
 
 }
 
@@ -112,6 +117,11 @@ implicitCoupleProps
     granVelFieldName        "Us";
     voidfractionFieldName   "voidfraction";
     //KslLimit 0;  // source switched off!!!
+}
+
+explicitCoupleProps
+{
+    //fLimit (0 0 0);
 }
 
 KochHillDragProps

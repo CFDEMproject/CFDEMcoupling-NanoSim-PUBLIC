@@ -77,6 +77,8 @@ class SelectorContainer : public c3poBase, public c3poBaseInterface
       void middle_of_step();
       void end_of_step();
       
+      void bubble_run();
+      
       int filterCount()   const {return     filters_.size();};
       int selectorCount() const {return     cellSelector_.size()
                                           + particleSelector_.size();
@@ -85,6 +87,7 @@ class SelectorContainer : public c3poBase, public c3poBaseInterface
       FilterBase*   filter(int idx)           {return filters_[idx];}
       SelectorBase* particleSelector(int idx) {return particleSelector_[idx];}
       SelectorBase* cellSelector(int idx)     {return cellSelector_[idx];}
+      SelectorBase* bubbleSelector(int idx)     {return bubbleSelector_[idx];}
 
       SelectorBase* selector(int i)   const ;//return global Selector
 
@@ -117,8 +120,15 @@ class SelectorContainer : public c3poBase, public c3poBaseInterface
       
       int filterType() const {return filters_[iF]->filterType();};
       
+      bool selectiveFilter() const {return filters_[iF]->selectiveFilter(); };
+      
+      double* maxToFilter() const {return filters_[iF]->maxToFilter();};
+      double* minToFilter() const {return filters_[iF]->minToFilter();};
+   
+      bool haveCell() {return cellSelector_[iOp]->haveCell();}	
+      bool haveParticle() {return cellSelector_[iOp]->haveParticle();}	
 
-	
+      
 	inline int* currentCell()           const { return &selectedCellID_;};
         int  currentLocCell()        const;
 	void setCurrentCell(int i)          const {selectedCellID_=i;}; 
@@ -159,8 +169,12 @@ class SelectorContainer : public c3poBase, public c3poBaseInterface
 	void checkIJK(bool struct_)   const;  
 	
 	void setCurrentParticle(int id_)  const {currentParticleId_=id_;} ;
+	void isParticle()                 const {particleBased_=true;};
+	void isCell()                     const {particleBased_=false;};
 	
 	int  currentParticle()          {return currentParticleId_;};   
+	
+	bool particleBased()            {return particleBased_;};
 	                   
 /*-----------------------------------------------------------------------------------------------------*/      
     void SCreport()
@@ -185,6 +199,7 @@ class SelectorContainer : public c3poBase, public c3poBaseInterface
       vector<FilterBase*>   filters_;
       vector<SelectorBase*> cellSelector_;
       vector<SelectorBase*> particleSelector_;
+      vector<SelectorBase*> bubbleSelector_;
   
       mutable std::vector<int>* selected_Cells;
       mutable int      N_of_SCells;
@@ -204,6 +219,7 @@ class SelectorContainer : public c3poBase, public c3poBaseInterface
       mutable bool ijk;
       
       mutable int currentParticleId_;
+      mutable bool particleBased_;
 
 };
 

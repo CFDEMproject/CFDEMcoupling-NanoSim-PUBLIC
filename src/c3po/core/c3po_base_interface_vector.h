@@ -42,7 +42,6 @@ License
 #include <vector>
 #include <map>
 
-using namespace std;
 
 namespace C3PO_NS
 {
@@ -85,7 +84,7 @@ class c3poBaseInterfaceVector
             list_[i]->init();
     }
 
-    void parse_command(string map_string,int narg,char const* const* arg) const
+    void parse_command(std::string map_string,int narg,char const* const* arg) const
     {
         if (map_.find(map_string) != map_.end())
         {
@@ -99,7 +98,7 @@ class c3poBaseInterfaceVector
   private:
 
     template<typename U>
-    U* add(U *ptr,string map_string)
+    U* add(U *ptr,std::string map_string)
     {
       list_.push_back(static_cast<c3poBaseInterface*>(ptr));
       map_[map_string] = list_.back();
@@ -109,8 +108,8 @@ class c3poBaseInterfaceVector
       //return ptr;
     }
 
-    vector<c3poBaseInterface*> list_;
-    mutable map<string,c3poBaseInterface*> map_;
+    std::vector<c3poBaseInterface*> list_;
+    mutable std::map<std::string,c3poBaseInterface*> map_;
 };
 
 } //end c3po_NS

@@ -92,9 +92,9 @@ class OperationContainer : public c3poBase, public c3poBaseInterface
 
       template <typename T> static OperationBase *operation_creator(c3po *ptr, char *name);
 
-      vector<OperationBase*> opFiltering_;
-      vector<OperationBase*> opSampling_;
-      vector<OperationBase*> opBinning_;
+      std::vector<OperationBase*> opFiltering_;
+      std::vector<OperationBase*> opSampling_;
+      std::vector<OperationBase*> opBinning_;
 
       QJsonDocument *jsonDoc_;
       int iOp;

@@ -173,7 +173,7 @@ void CSVlagrangian::readLagrangian() const
 void CSVlagrangian::registerC3POparticles() const
 {
  for(int i=0;i<NofPar_;i++)
-   C3po_->addParticle( particleRadius_[i], particlePos_[i], particleVel_[i], &particleForce_[i], particleTorque_[i]);
+   C3po_->addParticle("CSVparticles", particleRadius_[i], particlePos_[i], particleVel_[i], &particleForce_[i], particleTorque_[i]);
 
 }
 /*------------------------------------------------------------------------------*/

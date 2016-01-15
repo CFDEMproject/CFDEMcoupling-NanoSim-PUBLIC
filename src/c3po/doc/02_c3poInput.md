@@ -180,6 +180,7 @@ In addition, more entries are required when using the CSV interface.
 Read next
 -----------
  - [commands](10_commandTypes.md)
+ - [additionalInput](03_postFilteringOperations.md)
  
 Go back
 -----------

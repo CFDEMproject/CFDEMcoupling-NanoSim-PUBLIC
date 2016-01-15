@@ -25,7 +25,7 @@ debugMode="off"          # on | off| strict
 testHarnessPath="$CFDEM_TEST_HARNESS_PATH"
 runOctave="true"
 postproc="false"
-cleanme="false"
+cleanup="true"
 #--------------------------------------------------------------------------------#
 
 #- call function to run a parallel CFD-DEM case
@@ -84,8 +84,9 @@ if [ $postproc == "true" ]
 fi
 
 #- clean up case
-if [ $cleanme == "true" ]
-    echo "deleting data at: $casePath : ???\n"
+if [ $cleanup == "true" ]
+  then
+    echo "deleting data at: $casePath : \n"
     source $WM_PROJECT_DIR/bin/tools/CleanFunctions
     cd $casePath/CFD
     cleanCase

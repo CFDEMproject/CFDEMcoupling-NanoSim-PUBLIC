@@ -55,7 +55,8 @@ using namespace C3PO_NS;
 SamplingGeneral::SamplingGeneral(c3po *ptr,const char *name) 
 : 
 OperationSampling(ptr,name),
-component_(-1)
+component_(-1),
+selective_(false)
 {
 }
 
@@ -103,9 +104,46 @@ void SamplingGeneral::process_input(QJsonObject jsonObj)
    error().throw_error_one("operation_sampling.cpp",
                                 0,
                                 "ERROR:Invalid vector component! Valid vector components are:\n 0 (= x )\n 1 (= y )\n 2 (= z ) \n");
-  //Multisampling
-  int ssize_=VFtoSample_.size() + SFtoSample_.size();
-  if(execFormula_) createSampleVectors(VFtoSample_.size(),SFtoSample_.size(),1);
+
+  //set formula-based sampling
+  if(execFormula_) 
+  {
+        createSampleVectors(VFtoSample_.size(),SFtoSample_.size(),1);
+
+        //set limits
+        if(!jsonObj["formulaLimiterNumerator"].isNull())
+        {
+            QJsonArray limitsTemp=jsonObj["formulaLimiterNumerator"].toArray();
+            formula_->setLimiterNumerator( (limitsTemp.at(0)).toDouble(),  
+                                           (limitsTemp.at(1)).toDouble()
+                                         );
+        }
+        if(!jsonObj["formulaLimiterDenominator"].isNull())
+        {
+            QJsonArray limitsTemp=jsonObj["formulaLimiterDenominator"].toArray();
+            formula_->setLimiterDenominator( (limitsTemp.at(0)).toDouble(),  
+                                             (limitsTemp.at(1)).toDouble()
+                                           );
+        }
+        if(!jsonObj["formulaLimiterSymmetry"].isNull())
+        {
+            QJsonArray symmetryTemp=jsonObj["formulaLimiterSymmetry"].toArray();
+            formula_->setLimiterSymmetry( (symmetryTemp.at(0)).toBool(), (symmetryTemp.at(1)).toBool() );
+            if(   (symmetryTemp.at(0)).toBool() 
+               && ( (formula_->getLimitNumerator())[0]<0 || (formula_->getLimitNumerator())[1]<0 ) 
+              )
+               error().throw_error_one("operation_sampling.cpp",
+                                       0,
+                                       "ERROR: you cannot set use a formulaLimiterSymmetry[0]=true and have a negative limit for formulaLimiterNumerator! \n");
+            if(   (symmetryTemp.at(1)).toBool() 
+               && ( (formula_->getLimitDenominator())[0]<0 || (formula_->getLimitDenominator())[1]<0 ) 
+              )
+               error().throw_error_one("operation_sampling.cpp",
+                                       0,
+                                       "ERROR: you cannot set use a formulaLimiterSymmetry[1]=true and have a negative limit for formulaLimiterDenominator! \n");
+        }
+
+  }
   else createSampleVectors(VFtoSample_.size(),SFtoSample_.size(),0);  
 
   //Set skips for output
@@ -122,6 +160,26 @@ void SamplingGeneral::process_input(QJsonObject jsonObj)
 
   run=&SamplingGeneral::sample;
   
+  if(!jsonObj["selective"].isNull())
+  {
+   if(jsonObj["selective"].toBool())
+     {
+      selective_=true;
+      if(jsonObj["max"].isNull())
+       error().throw_error_one(FLERR,"You must specify the max domain size when using selective sampling operations. \n"); 
+      
+      if(jsonObj["min"].isNull())
+       error().throw_error_one(FLERR,"You must specify the min domain size when using selective sampling operations. \n"); 
+      
+      for(int i=0;i<3;i++)
+      {
+       maximum_[i]=jsonObj["max"].toArray()[i].toDouble();
+       minimum_[i]=jsonObj["min"].toArray()[i].toDouble();
+      }
+      
+     }    
+  
+  }
 
   
 }
@@ -165,6 +223,15 @@ void SamplingGeneral::sample()
        if(cellID>=mesh().NofCells()) 
             error().throw_error_one("OperationSampling::sample()",
                                     0,"ERROR: cellID out of range!!"); 
+       if(selective_)
+       {
+        bool skip_=false;
+        for(int i=0;i<3;i++)
+         if(*(mesh().CellCentre(cell)[i])>maximum_[i] || *(mesh().CellCentre(cell)[i])<minimum_[i] )
+          skip_=true;
+        
+        if(skip_) continue;
+       }
          
         sampleValue  = dataStorage().VF(id, component_,cellID);
       
@@ -174,7 +241,12 @@ void SamplingGeneral::sample()
         insertSample(sampleValue,&markerValue[0],samp_); //pushes the sample into the container
         if(input().verbose())
         {
-            cout<< "VectorField: sampleValue: "<< sampleValue << "   marker1: " << marker1 << endl;
+            std::cout<< "VectorField:sampleValue: "<< sampleValue;
+            for(int mark_=0;mark_<NofMarkers_;mark_++)
+            {
+             std::cout<< "   marker" << mark_ << ": " << markerValue[mark_];
+            }
+            std::cout<< std::endl;
         }
     }
    }
@@ -191,6 +263,16 @@ void SamplingGeneral::sample()
     { 
        double markerValue[NofMarkers_];
        cellID=cell;    
+       
+       if(selective_)
+       {
+        bool skip_=false;
+        for(int i=0;i<3;i++)
+         if(*(mesh().CellCentre(cell)[i])>maximum_[i] || *(mesh().CellCentre(cell)[i])<minimum_[i] )
+          skip_=true;
+        
+        if(skip_) continue;
+       }
               
        if(cellID>=mesh().NofCells()) 
             error().throw_error_one("OperationSampling::sample()",
@@ -204,7 +286,12 @@ void SamplingGeneral::sample()
         insertSample(sampleValue,&markerValue[0],VFtoSample_.size()+samp_); //pushes the sample into the container
         if(input().verbose())
         {
-            cout<< "ScalarField:sampleValue: "<< sampleValue << "   marker1: " << marker1 << endl;
+            std::cout<< "ScalarField:sampleValue: "<< sampleValue;
+            for(int mark_=0;mark_<NofMarkers_;mark_++)
+            {
+             std::cout<< "   marker" << mark_ << ": " << markerValue[mark_];
+            }
+            std::cout<< std::endl;
         }
     }
   }  

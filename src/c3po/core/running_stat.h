@@ -92,6 +92,10 @@ class runningStat
         mutable const char* OpName_;
 
         bool   binCentersDumped_;
+        
+        int      * bufCount;
+        double   * bufMean;
+        double   * bufVar;
 };
 }
 

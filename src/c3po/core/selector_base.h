@@ -44,12 +44,15 @@ Description
 #include "string.h"
 #include "input.h"
 #include "error.h"
+#include "data_storage.h"
+#include "mesh.h"
 namespace C3PO_NS
 {
 
 //numbering of Selector type
 enum{ CELL,		//0
       PARTICLE,   	//1
+      REGION            //2
     };
 
 
@@ -73,11 +76,33 @@ class SelectorBase : public c3poBaseAccessible
       const char* scope() {  return scope_; }
       virtual double value(){return 0.0;};
       
+      bool haveCell() {
+                       if( currentCell_<mesh().MaxNofCellsProc()[comm().me()]
+                           &&
+                           inside_[comm().me()]
+                         )
+                        return true;
+                        else return false;
+                       }
+      bool haveParticle() {
+                       if( currentPar_<dataStorage().getNofParticlesProc(comm().me()) 
+                           &&
+                           inside_[comm().me()]
+                         )
+                        return true;
+                        else return false;
+                       }
+      
 
     private:
 
       char *name_;
       char *scope_; // scope/name for JSON file
+    protected:
+      
+       int currentCell_;
+       int currentPar_;
+       bool* inside_;
 };
 
 } //end c3po_NS

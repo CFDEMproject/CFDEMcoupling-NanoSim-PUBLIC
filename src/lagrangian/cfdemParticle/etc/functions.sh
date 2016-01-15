@@ -77,7 +77,7 @@ compileLib()
         ending=${str:$i:4}
         if [[ $ending == "Comp" ]]; then
                 echo "Compiling a compressible library - so doing an rmdepall of incomp library first."
-                echo "Please make sure to have the compressible libraries first in the library-list.txt!"
+                echo "Please make sure to have the incompressible libraries first in the library-list.txt!"
                 cd $CFDEM_SRC_DIR/lagrangian/cfdemParticle
                 echo "changing to $PWD"
                 if [[ $WM_PROJECT_VERSION == "dev" ]]; then
@@ -201,7 +201,8 @@ compileLIGGGHTS()
         make $CFDEM_LIGGGHTS_MAKEFILE_NAME 2>&1 | tee -a $logpath/$logfileName
     else
         echo "compiling LIGGGHTS on $WM_NCOMPPROCS CPUs"
-        make $CFDEM_LIGGGHTS_MAKEFILE_NAME -j $WM_NCOMPPROCS  2>&1 | tee -a $logpath/$logfileName
+        make $CFDEM_LIGGGHTS_MAKEFILE_NAME -j $WM_NCOMPPROCS 2>&1 | tee -a $logpath/$logfileName
+        #make $CFDEM_LIGGGHTS_MAKEFILE_NAME -j $WM_NCOMPPROCS yes-XYZ 2>&1 | tee -a $logpath/$logfileName
     fi
     make makelib 2>&1 | tee -a $logpath/$logfileName
     make -f Makefile.lib $CFDEM_LIGGGHTS_MAKEFILE_NAME 2>&1 | tee -a $logpath/$logfileName
@@ -619,7 +620,10 @@ parCFDDEMrun()
         debugMode="valgrind"
     elif [ $debugMode == "strict" ]; then
         #debugMode="valgrind --leak-check=full -v --trace-children=yes --track-origins=yes" 
-        debugMode="valgrind --tool=memcheck --leak-check=yes --show-reachable=yes --num-callers=20 --track-fds=yes"  
+        debugMode="valgrind --tool=memcheck --leak-check=yes --show-reachable=yes --num-callers=20 --track-fds=yes"
+    elif [ $debugMode == "profile" ]; then
+        debugMode="hpcrun"
+        rm -r $casePath/CFD/hpctoolkit-$solverName-measurements
     else
         debugMode=""
     fi
@@ -673,6 +677,12 @@ parCFDDEMrun()
             #pseudoParallelRun "reconstructPar" $nrProcs
             reconstructPar
         fi
+    fi
+
+    if [[ $debugMode == "hpcrun" ]]; then
+        rm hpctoolkit-$solverName-database*
+        hpcprof -S $CFDEM_APP_DIR/$solverName.hpcstruct -I ./'*' hpctoolkit-$solverName-measurements
+        echo "huhu"      
     fi
 
     #- keep terminal open (if started in new terminal)

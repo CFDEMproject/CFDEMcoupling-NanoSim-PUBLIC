@@ -47,6 +47,7 @@ License
 #include <cmath>
 #include <ctime>
 #include "timer.h"
+#include "multiphase_FlowBasic.h"
 
 using namespace C3PO_NS;
 
@@ -58,17 +59,19 @@ using namespace C3PO_NS;
 c3po::c3po(int narg, char **arg, MPI_Comm communicator) :
   c3poBaseInterfaceVector_( new c3poBaseInterfaceVector),
   timer_             ( c3poBaseInterfaceVector_->add<Timer>(new Timer(this),"timer")),
-  control_           ( c3poBaseInterfaceVector_->add<Control>(new Control(this),"control")),    //the string is that in the input script"
-  comm_              ( c3poBaseInterfaceVector_->add<Comm>(new Comm(this,communicator),"comm")),    //the string is that in the input script"
-  input_             ( c3poBaseInterfaceVector_->add<Input>(new Input(this),"input")),  //the string is that in the input script"
-  output_            ( c3poBaseInterfaceVector_->add<Output>(new Output(this),"output")), //the string is that in the input script"
-  error_             ( c3poBaseInterfaceVector_->add<Error>(new Error(this),"error")),  //the string is that in the input script"
-  operationContainer_( c3poBaseInterfaceVector_->add<OperationContainer>(new OperationContainer(this),"operation" ) ), //the string is that in the input script"
-  selectorContainer_ ( c3poBaseInterfaceVector_->add<SelectorContainer>(new SelectorContainer(this),"selector" ) ), //the string is that in the input script"
-  dataStorageInternal_(c3poBaseInterfaceVector_->add<DataStorage>(new DataStorage(this),"storage")),  //the string is that in the input script"
-  mesh_(c3poBaseInterfaceVector_->add<c3poMesh>(new c3poMesh(this),"mesh"))  //the string is that in the input script"
+  control_           ( c3poBaseInterfaceVector_->add<Control>(new Control(this),"control")),    //the std::string is that in the input script"
+  comm_              ( c3poBaseInterfaceVector_->add<Comm>(new Comm(this,communicator),"comm")),    //the std::string is that in the input script"
+  input_             ( c3poBaseInterfaceVector_->add<Input>(new Input(this),"input")),  //the std::string is that in the input script"
+  output_            ( c3poBaseInterfaceVector_->add<Output>(new Output(this),"output")), //the std::string is that in the input script"
+  error_             ( c3poBaseInterfaceVector_->add<Error>(new Error(this),"error")),  //the std::string is that in the input script"
+  operationContainer_( c3poBaseInterfaceVector_->add<OperationContainer>(new OperationContainer(this),"operation" ) ), //the std::string is that in the input script"
+  selectorContainer_ ( c3poBaseInterfaceVector_->add<SelectorContainer>(new SelectorContainer(this),"selector" ) ), //the std::string is that in the input script"
+  dataStorageInternal_(c3poBaseInterfaceVector_->add<DataStorage>(new DataStorage(this),"storage")),  //the std::string is that in the input script"
+  mesh_(c3poBaseInterfaceVector_->add<c3poMesh>(new c3poMesh(this),"mesh")),  //the std::string is that in the input script"
+  basicMultiphaseQty_(c3poBaseInterfaceVector_->add<multiphaseFlowBasic>(new multiphaseFlowBasic(this),"basicMultiphase"))
 {
     input_->process_input_script();
+    dataStorageInternal_->init();
 }
 
 /* ----------------------------------------------------------------------
@@ -103,6 +106,7 @@ void c3po::init()
     printf("Will initialize individual components of c3po now... \n");
 
     c3poBaseInterfaceVector_->init();
+    
 
     printf("\n*******************************************\n\n");
     
@@ -150,7 +154,12 @@ void c3po::setCells(int * number_of_cells, int * global_number_of_cells, double 
 // *************************************************************
 void c3po::preRunOperations() const
 {
- dataStorageInternal_->gatherParticleData();
+ 
+ dataStorageInternal_->readParticles();
+ 
+ selectorContainer_->bubble_run();
+ dataStorageInternal_->writeRegions();
+ 
 
 }
 
@@ -164,10 +173,7 @@ void c3po::runFilters(int id) const
     
     if(!input_->mainSettings()["doFiltering"].toBool())
         return;
- //   if(selectorContainer_->cell_center_ID_is_null()) 
- //       return;  //Avoids segFault   
-   // if((operationContainer_->filterCount() < 0) || (id > operationContainer_->filterCount()) || (id < -1))
-     //   return;
+ 
 
     int MaxNofCells=*(mesh_->MaxNofCells());
      
@@ -189,47 +195,54 @@ void c3po::runFilters(int id) const
    //Begin of step 
    for(int s=0;s<NofFilteringOp_;s++)
     operationContainer_->filter_begin_of_step(s);
+ 
+ if(!dataStorageInternal_->useProbes()) doParticle_=false;
   
  if(doParticle_) 
  {
-    int numPar_=dataStorageInternal_-> MaxNumOfParticles(); 
- 
-  //Run particleBased Filtering operations 
-  for(int n=0;n<numPar_;n++)
-   {
-        int selCell;
-            
-        if(n<dataStorageInternal_-> numOfParticles())   
-        {
-          selCell = selectorContainer_->selectCell( dataStorageInternal_->getParticle(n)->getpos()[0],
-                                                       dataStorageInternal_->getParticle(n)->getpos()[1],
-                                                       dataStorageInternal_->getParticle(n)->getpos()[2]
-                                                     );
-        }
-        else selCell = MaxNofCells;
-        
-            
-            selectorContainer_->setCurrentCell(selCell);
-            selectorContainer_->setCurrentParticle(n);
-            selectorContainer_->begin_of_step();    
-           
-         for(int s=0;s<NofFilteringOp_;s++)
-          if(operationContainer_->filter(s)->particleBased()) 
-            operationContainer_->filter_middle_of_step(s);
-
-        }
+  for(int probe=0;probe<dataStorageInternal_->NofProbes();probe++)
+  {
+    dataStorageInternal_->setCurrentProbes(probe);
     
-    
+    if(!dataStorageInternal_->runProbes(filtName_)) continue;
      
-  }
-  
+    int numPar_=dataStorageInternal_-> MaxNumOfParticles(); 
+    selectorContainer_->isParticle();
+   //Run particleBased Filtering operations 
+
+   for(int n=0;n<numPar_;n++)
+   {
+     selectorContainer_->setCurrentParticle(n);
+      selectorContainer_->begin_of_step();    
+           
+      for(int s=0;s<NofFilteringOp_;s++)
+       if(operationContainer_->filter(s)->particleBased()) 
+         operationContainer_->filter_middle_of_step(s);
+
+   }
+    
+  }  
+     
+ }
+
  if(doCell_)
  {   
+  #ifdef C3PO_DEBUG_TRUE
+  int perc=int(MaxNofCells/100);
+  #endif
   selectorContainer_->resetFSize();
-  selectorContainer_->resetFilterVolume(); 
+  selectorContainer_->resetFilterVolume();
+  selectorContainer_->isCell(); 
    //Run Eulerian Filtering operations  
     for (int n=0;n<MaxNofCells;n++)     
      { 
+      
+      #ifdef C3PO_DEBUG_TRUE
+      if(comm_->is_proc_0())
+       if(n % perc ==0)
+        std::cout <<  "\n cell filter " << filtName_ <<" running =====>  " << n/MaxNofCells*100 << "%";
+      #endif
+    
        
        selectorContainer_->setCurrentCell(n);
              
@@ -244,7 +257,7 @@ void c3po::runFilters(int id) const
            
      }
   }   
- 
+
   //End of step   
    for(int s=0;s<NofFilteringOp_;s++)
     operationContainer_->filter_end_of_step(s);
@@ -254,10 +267,10 @@ void c3po::runFilters(int id) const
    
    dataStorageInternal_->writeFields(filtName_); 
    dataStorageInternal_->writeParticleFields(filtName_);  
- 
+
    
  if(input_->verbose())
-    cout << "\nFiltering operations ended sucesfully for proc: " << comm_->me() << "\n";
+    std::cout << "\nFiltering operations ended successfully for proc: " << comm_->me() << "\n";
    
    MPI_Barrier(MPI_COMM_WORLD);
    
@@ -286,7 +299,7 @@ void c3po::runSampling() const
     timer_->synchronized_stop(TIME_SAMPLING);
    
    if(input_->verbose())
-    cout << "\nSampling operations ended sucesfully for proc: " << comm_->me() << "\n";
+    std::cout << "\nSampling operations ended successfully for proc: " << comm_->me() << "\n";
 }
 
 // *************************************************************
@@ -305,10 +318,18 @@ void c3po::runBinning() const
    
    
    if(input_->verbose()) 
-    cout << "\nBinning operations ended successfully for proc: " << comm_->me() << "\n";
+    std::cout << "\nBinning operations ended successfully for proc: " << comm_->me() << "\n";
     
     MPI_Barrier(MPI_COMM_WORLD);
      timer_->synchronized_stop(TIME_BINNING);
+}
+
+// *************************************************************
+void c3po::postRunOperations() const
+{
+ 
+ dataStorageInternal_->deleteParticles(); 
+
 }
 
 // *************************************************************
@@ -403,9 +424,9 @@ void c3po::GlobalSF(std::string name, double* x)
 
 }
 
-void c3po::addParticle(double m, double* pos, double* vel, std::vector< double* >* force, double* torque)
+void c3po::addParticle(std::string groupName_, double m, double* pos, double* vel, std::vector< double* >* force, double* torque)
 {
- dataStorageInternal_->addParticle(m,pos,vel,force, torque);
+ dataStorageInternal_->addParticle(groupName_,m,pos,vel,force, torque);
 }
 
 void c3po::deleteParticles()
@@ -559,6 +580,24 @@ void c3po::clearMesh() const
 {
  mesh_->clearCells();
 }
+bool c3po::registerCFDEMparticles() const
+{
+ return input_->registerCFDEMparticles();
+}
+std::vector<std::string> c3po::getGradientScalarList() const
+{
+ return input_->getGradientScalarList();
+}
+std::vector<std::string> c3po::getGradientVectorList() const
+{
+ return input_->getGradientVectorList();
+}
+
+std::vector<std::string> c3po::getShearRateList() const
+{
+ return input_->getShearRateList();
+}
+
 /* ----------------------------------------------------------------------
    help message for command line options and styles present in executable
 ------------------------------------------------------------------------- */

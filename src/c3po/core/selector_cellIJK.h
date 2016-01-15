@@ -72,7 +72,7 @@ class SelectorCellIJK : public SelectorBase
       
     private:
     
-    int currentCell_;
+   
     double tolerance_;
     
     int* cellList_;
@@ -80,6 +80,7 @@ class SelectorCellIJK : public SelectorBase
     int* max_;
     int* min_;
     double* cellCoord_;
+    
     
     
     bool checkPosition(double posA, double max, double min );
@@ -101,6 +102,8 @@ class SelectorCellIJK : public SelectorBase
     
     int ijk2CellIDOF(int i_add_correct, int j_add_correct, int k_add_correct);
     void CellID2ijk(int center_Cell_ID, int* result); 
+    
+   
 };
 
 } //end c3po_NS

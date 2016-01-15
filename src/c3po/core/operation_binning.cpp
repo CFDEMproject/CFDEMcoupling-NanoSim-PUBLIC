@@ -137,7 +137,7 @@ void OperationBinning::init(QJsonObject jsonObj)
      
      MarkNum_.append(str);
      
-     cout << "\n" << MarkNum_;
+    // std::cout << "\n" << MarkNum_;
      
      //if( !jsonObj[MarkNum_.c_str()].isNull())  error().throw_error_one(FLERR,"Cannot find Marker\n");
      

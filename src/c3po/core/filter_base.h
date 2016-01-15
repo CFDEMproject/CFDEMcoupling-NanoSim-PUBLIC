@@ -69,6 +69,11 @@ class FilterBase : public c3poBaseAccessible
       int filterNcells(int x) {return filterNcells_[x];};
       int filterType() {return filterType_;};
       inline double* filterSize(int x)  {return &filtersize_[x];};
+      
+      bool selectiveFilter()          {return selective_;};
+      
+      double* maxToFilter()           {return &maximum_[0];};
+      double* minToFilter()           {return &minimum_[0];};
 
     private:
 
@@ -81,7 +86,11 @@ class FilterBase : public c3poBaseAccessible
       mutable double  filtersize_[3];        //spatial extension of filter
       mutable int     filterNcells_[3];      //cell count to filter over
       mutable int     total_filtered_cells_; //total number of cells to filter
-      mutable int    filterType_;
+      mutable int     filterType_;
+      mutable bool    selective_;            //true if just a portion of the domain has to be filtered
+      
+      mutable double  minimum_[3];           //minimum domain to filter
+      mutable double  maximum_[3];           //maximum domain to filter
       
 };
 

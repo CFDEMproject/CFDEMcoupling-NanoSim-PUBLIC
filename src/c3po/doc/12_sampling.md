@@ -2,7 +2,7 @@ Sampling command specifiers
 ======================
 
 
-_Sampling command specifiers_always need to be followed by the _command name_. Any _operation_ declared using a _sampling command specifier_ is called _sampling operation_ and has to be defined in the `c3po.json` file.
+_Sampling command specifiers_ always need to be followed by the _command name_ . Any _operation_ declared using a _sampling command specifier_ is called _sampling operation_ and has to be defined in the `c3po.json` file.
 
 Syntax  
 -------
@@ -30,6 +30,10 @@ Every _sampling operation_ requires the user to specify some fields in the `c3po
 * "save2Bin": requires a boolean value. If set to true, the sampled values will be sent to the corresponding _binning operation_. If you choose this option, please be sure that a corresponding _binning operation_ exists. Otherwise, an error will be thrown.
 
 Note, that documentation on how to use the different sampling operations delivered with CPPPO is provided in separate files.
+Some sampling operations will allow the following entry:
+* "lagrangian":           requires a boolean value. If set to _false_, every cell in the domain will be sampled, otherwise only cells at particle/probe centres will be sampled. If this is set to _true_ the name of the probes/particles group should be provided with an additional entry:
+ * "probesName": requires a string of characters. The user can has to enter the probes/particles group that will be used by this operation. Note that just one group per operation can be defined.
+
 
 Example
 -------

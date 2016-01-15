@@ -115,6 +115,11 @@ class OperationSampling : public OperationBase
       
       Formula *                            formula_;
       mutable int                          NofMarkers_;
+      
+      std::string                          probesName_;
+
+      bool                                 normalizeSample_;
+
 };
 
 } //end c3po_NS

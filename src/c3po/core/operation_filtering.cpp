@@ -50,6 +50,7 @@ License
 #define VERBOSE_OPFILTER false
 
 using namespace C3PO_NS;
+using namespace std;
 
 /* ----------------------------------------------------------------------
    ModelBase Constructor
@@ -58,6 +59,7 @@ using namespace C3PO_NS;
 OperationFiltering::OperationFiltering(c3po *ptr,const char *name) 
 : 
 OperationBase(ptr,name),
+probesName_("NULL"),
 computeVariance_(false),
 varianceHasCrossTerm_(false),
 par_(false)
@@ -83,6 +85,16 @@ void OperationFiltering::init(QJsonObject jsonObj)
    error().throw_error_one(FLERR,"You must specify the \"lagrangian\" field!!. \n");
          
   par_=jsonObj["lagrangian"].toBool();
+  
+  if(par_)
+  {
+    if(jsonObj["probesName"].isNull())
+     error().throw_error_one(FLERR,"If you set a filtering operation in \"lagrangian\" mode you should also specify the \"probesName\" field! \n");
+     
+     QString qsV=jsonObj["probesName"].toString();
+     probesName_ =qsV.toUtf8().constData();
+   
+  }
   
   registerFieldsFiltered(jsonObj); 
   
@@ -310,7 +322,7 @@ void OperationFiltering::registerFieldsVariance(QJsonObject jsonObj) const
   if(varianceHasCrossTerm_ && filterSFVarianceNameVectorScalarMixed_.size()>0)
     error().throw_error_all("operation_filtering.cpp",-1, "You cannot specify 'VectorfieldsForVarianceName2' and 'ScalarfieldsForVectorScalarMixedVariance'. Please use separate filtering operations in case you want to compute vector-vector cross terms and vector-scalar mixed terms.");
 
-  for(uint iVar = 0; iVar<filterSFVarianceNameVectorScalarMixed_.size(); iVar++)
+  for(unsigned int iVar = 0; iVar<filterSFVarianceNameVectorScalarMixed_.size(); iVar++)
   {
     int tmpScalInt = searchScalarFiltName(filterSFVarianceNameVectorScalarMixed_[iVar]);
     filterSFVarianceValueVectorScalarMixed_.push_back(tmpScalInt);
@@ -395,7 +407,6 @@ void OperationFiltering::begin_of_step()
     int filtFieldID = dataStorage().VFid(name);
     if (filtFieldID==-1)
     {
-        std::cout << "ERROR: when searching for filtered field " << name << "\n" ;
         error().throw_error_all("OperationFiltering::begin_of_step()",
                                 -1,
                                 "ERROR: Could not find filtered VECTOR field for variance calculation. Check you have the above filtered field registerd!");

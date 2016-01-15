@@ -118,7 +118,9 @@ int main(int argc, char *argv[])
             velocities_,
             particleWeights_,
             particleCloud.averagingM().UsWeightField(),
-            NULL
+            NULL, //mask
+            NULL,
+            false
         );
 
         for (int i=0;i<particleCloud.nrForceModels();i++) particleCloud.forceM(i).setForce();

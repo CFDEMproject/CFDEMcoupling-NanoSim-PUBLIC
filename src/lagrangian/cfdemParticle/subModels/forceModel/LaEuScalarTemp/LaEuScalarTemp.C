@@ -290,7 +290,7 @@ void LaEuScalarTemp::manipulateScalarField(volScalarField& EuField) const
         NULL
     );
 
-    // scale with -1/(Vcell*rho*Cp)
+    // scale with -1./(Vcell*rho*Cp)
     EuField.internalField() /= -rhoField.internalField()*Cp_*EuField.mesh().V();
 
     // limit source term

@@ -81,7 +81,7 @@ ShirgaonkarIB::ShirgaonkarIB
     if (propsDict_.found("twoDimensional"))
     {
         twoDimensional_=true;
-        depth_ = propsDict_.lookup("depth");
+        depth_ = readScalar(propsDict_.lookup("depth"));
         Info << "2-dimensional simulation - make sure DEM side is 2D" << endl;
         Info << "depth of domain is assumed to be :" << depth_ << endl;
     }
@@ -142,7 +142,9 @@ void ShirgaonkarIB::setForce() const
             if(probeIt_)
             {
                 #include "setupProbeModelfields.H"
-                vValues.append(drag);           //first entry must the be the force
+                // Note: for other than ext one could use vValues.append(x)
+                // instead of setSize
+                vValues.setSize(vValues.size()+1, drag);           //first entry must the be the force
                 particleCloud_.probeM().writeProbe(index, sValues, vValues);
             }
 

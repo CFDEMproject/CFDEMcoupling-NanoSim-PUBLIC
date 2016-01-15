@@ -143,10 +143,20 @@ public:
 
         virtual void preParticleLoop(bool verbose=false) const {};
 
+        virtual void postParticleLoop(bool verbose=false) const {};
+
         virtual void explicitCorr(vector&, vector&, scalar&, vector&, const vector&, vector&, const vector&, bool,label index=100) const;
 
         virtual void explicitCorrScalar(scalar&, scalar&, scalar&, 
                                         scalar&, const scalar&, scalar&, bool, label index=100) const;
+
+        virtual void update(scalar& deltaT,         label particleI,        label cellI, 
+                            scalar& scalToUpdate1,  scalar&  scalToUpdate2, bool  verbose) const;
+
+        virtual void update(scalar& deltaT,         label particleI,        label cellI, 
+                            vector& vecToUpdate1,   vector&  vecToUpdate2, 
+                            scalar& scalToUpdate1,  scalar&  scalToUpdate2, 
+                            bool  verbose) const;
 
         virtual void explicitLimit(vector&, vector&, scalar&) const;
 

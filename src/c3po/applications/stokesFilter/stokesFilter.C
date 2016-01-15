@@ -132,7 +132,7 @@ int main(int argc, char *argv[])
     
     for(int i=0;i<3;i++)
     {
-     position_[i]=0.0;
+     position_[i]=-0.0;
      velocity_[i]=0.0;
      force_[i]=0.0;    
     }
@@ -221,8 +221,9 @@ int main(int argc, char *argv[])
     std::vector<double*> forceVec_;
     forceVec_.push_back(&force_[0]);
     
-    myC3PO->registerParticle( 0,
-                                 radius_,
+    myC3PO->registerParticle(   "particleCenter",
+                                0,
+                                radius_,
                                 &position_[0],
                                 &velocity_[0],
                                 &forceVec_

@@ -101,6 +101,7 @@ Foam::cfdemCloud::cfdemCloud
     momCoupleModels_(couplingProperties_.lookup("momCoupleModels")),
     liggghtsCommandModelList_(liggghtsCommandDict_.lookup("liggghtsCommandModels")),
     turbulenceModelType_(couplingProperties_.lookup("turbulenceModelType")),
+    isLES_(false),
     cg_(1.),
     cgOK_(true),
     impDEMdrag_(false),
@@ -138,6 +139,23 @@ Foam::cfdemCloud::cfdemCloud
             turbulenceModelType_
         )
     ),
+    turbulenceMultiphase_
+    (   
+        IOobject
+        (
+            "turbulenceMultiphase",
+            mesh.time().timeName(),
+            mesh,
+            IOobject::NO_READ,
+            IOobject::AUTO_WRITE
+        ),
+        mesh,
+#ifdef compre
+        dimensionedScalar("zero", dimensionSet(1,-1,-1,0,0), 0)  // kg/m/s
+#else
+        dimensionedScalar("zero", dimensionSet(0,2,-1,0,0), 0)  // m²/s
+#endif
+    ),    
     locateModel_
     (
         locateModel::New
@@ -176,8 +194,8 @@ Foam::cfdemCloud::cfdemCloud
         (
             couplingProperties_,
             *this,
-            "none",
-            "none"
+            (char *)"none",
+            (char *)"none"
         )
     ),
     voidFractionModel_
@@ -236,6 +254,7 @@ Foam::cfdemCloud::cfdemCloud
 
     // apply flag
     if(!debugMode()) ddtVoidfraction_.writeOpt() = IOobject::NO_WRITE;
+    if(!debugMode()) turbulenceMultiphase_.writeOpt() = IOobject::NO_WRITE;
     voidFractionM().applyDebugSettings(debugMode());
     averagingM().applyDebugSettings(debugMode());
     //--
@@ -250,7 +269,10 @@ Foam::cfdemCloud::cfdemCloud
     if (couplingProperties_.found("verbose")) verbose_=true;
     if (couplingProperties_.found("ignore")) ignore_=true;
     if (turbulenceModelType_=="LESProperties")
+    {
+        isLES_ = true;
         Info << "WARNING - LES functionality not yet tested!" << endl;
+    }
 
     if (couplingProperties_.found("useDDTvoidfraction"))
     {
@@ -430,7 +452,9 @@ void Foam::cfdemCloud::setVectorAverages()
         velocities_,
         particleWeights_,
         averagingM().UsWeightField(),
-        NULL //mask
+        NULL, //mask
+        NULL,
+        false
     );
     if(verbose_) Info << "setVectorAverage done." << endl;
 }
@@ -633,6 +657,8 @@ bool Foam::cfdemCloud::evolve
             if(verbose_) Info << "- setForce(forces_)" << endl;
             setForces();
             if(verbose_) Info << "setForce done." << endl;
+            calcMultiphaseTurbulence();
+            if(verbose_) Info << "calcMultiphaseTurbulence done." << endl;
             clockM().stop("setForce");
 
             // get next force field
@@ -744,6 +770,39 @@ void cfdemCloud::calcDdtVoidfraction(volScalarField& voidfraction, volVectorFiel
     }
 }
 
+//****************************************
+void cfdemCloud::calcMultiphaseTurbulence()
+{
+    //Temporary field for collecting the sources
+    volScalarField tmpSource
+    (   IOobject
+        (
+            "tmpSource",
+            mesh().time().timeName(),
+            mesh(),
+            IOobject::NO_READ,
+            IOobject::NO_WRITE
+        ),
+        turbulenceMultiphase_*0.0
+    );
+
+    //reset sources, and compute the sources due to the cloud
+    //Will accumulate all sources for all force models
+    for (int iModel=0; iModel<nrForceModels(); iModel++) //
+    {
+        #ifdef compre
+            forceM(iModel).multiphaseTurbulence(tmpSource, true);
+        #else
+            forceM(iModel).multiphaseTurbulence(tmpSource, false);
+        #endif
+        if(iModel==0)
+            turbulenceMultiphase_    = tmpSource;
+        else
+            turbulenceMultiphase_   += tmpSource;
+    }
+
+}
+
 /*tmp<fvVectorMatrix> cfdemCloud::ddtVoidfractionU(volVectorField& U,volScalarField& voidfraction) const
 {
     if (dataExchangeM().couplingStep() <= 2) return fvm::ddt(U);
@@ -758,9 +817,17 @@ tmp<volScalarField> cfdemCloud::voidfractionNuEff(volScalarField& voidfraction) 
         return tmp<volScalarField>
         (
             #ifdef compre
-                new volScalarField("viscousTerm", (turbulence_.mut() + turbulence_.mu()))
+                new volScalarField("viscousTerm", (  turbulence_.mut()  
+                                                   + turbulence_.mu() 
+                                                   + turbulenceMultiphase_
+                                                  )
+                                  )
             #else
-                new volScalarField("viscousTerm", (turbulence_.nut() + turbulence_.nu()))
+                new volScalarField("viscousTerm", (  turbulence_.nut() 
+                                                   + turbulence_.nu()
+                                                   + turbulenceMultiphase_
+                                                  )
+                                  )
             #endif
         );
     }
@@ -769,9 +836,17 @@ tmp<volScalarField> cfdemCloud::voidfractionNuEff(volScalarField& voidfraction) 
         return tmp<volScalarField>
         (
             #ifdef compre
-                new volScalarField("viscousTerm", voidfraction*(turbulence_.mut() + turbulence_.mu()))
+                new volScalarField("viscousTerm", voidfraction*(  turbulence_.mut() 
+                                                                + turbulence_.mu()
+                                                                + turbulenceMultiphase_
+                                                               )
+                                  )
             #else
-                new volScalarField("viscousTerm", voidfraction*(turbulence_.nut() + turbulence_.nu()))
+                new volScalarField("viscousTerm", voidfraction*(  turbulence_.nut() 
+                                                                + turbulence_.nu()
+                                                                + turbulenceMultiphase_
+                                                               )
+                                  )
             #endif
         );
     }

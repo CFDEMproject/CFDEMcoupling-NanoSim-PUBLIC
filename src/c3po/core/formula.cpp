@@ -38,7 +38,9 @@ License
 #include "formula.h"
 #include "stdlib.h"
 #include <cstdio>
+#include <cmath>
 #include "mpi.h"
+
 
 using namespace C3PO_NS;
 
@@ -46,6 +48,31 @@ Formula::Formula(const char* formula)
 :
 raw_formula_(formula)
 {
+ limitNumeratorActive_       = false;
+ limitDenominatorActive_     = false;
+ limitNumerator_[0]          = -1e99;    limitNumerator_[1]   = 1e99;
+ limitNumeratorSymmetric_    = true;
+ limitDenominator_[0]        = -1e99;    limitDenominator_[1] = 1e99;
+ limitDenominatorSymmetric_  = true;
+ normalize_                  = false;
+
+ ParseFormula();
+ CheckFormula();
+}
+/*-----------------------------------------------------------------------------*/
+Formula::Formula(const char* formula, const char* normalization)
+:
+raw_formula_(formula),
+normalization_(normalization)
+{
+ limitNumeratorActive_       = false;
+ limitDenominatorActive_     = false;
+ limitNumerator_[0]          = -1e99;    limitNumerator_[1]   = 1e99;
+ limitNumeratorSymmetric_    = true;
+ limitDenominator_[0]        = -1e99;    limitDenominator_[1] = 1e99;
+ limitDenominatorSymmetric_  = true;
+ normalize_                  = true;
+
  ParseFormula();
  CheckFormula();
 }
@@ -102,8 +129,8 @@ void Formula::ParseFormula() const
   if(numerator_.size()==0)
       numerator_.assign(formula_.begin(),formula_.end());
 
-
-   std::cout << "formula: " << (getFormula()).c_str() << " \n";
+   std::cout << "formula: ";
+   std::cout << (getFormula()).c_str() << " \n";
 
 }
 /*-----------------------------------------------------------------------------*/
@@ -118,11 +145,11 @@ void Formula::interpretFormula(int numVecs, int numScalars) const
          {
           if( numerator_[i-1]=='e' && numerator_[i-2]=='v')
           {
-           if(i==numerator_.size()-1) throw_error("interpretFormula","vector field number missing!");
+           if(i==numerator_.size()-1) throw_error("interpretFormula","std::vector field number missing!");
            
-           numerator_[i+1]=numerator_[i+1]-1; //for vectors just decrease the index
+           numerator_[i+1]=numerator_[i+1]-1; //for std::vectors just decrease the index
            
-           if(numerator_[i+1]-'0'>9) throw_error("interpretFormula","vector field number missing!");
+           if(numerator_[i+1]-'0'>9) throw_error("interpretFormula","std::vector field number missing!");
            
             
            numerator_.erase(numerator_.begin()+i-2,numerator_.begin()+i+1);
@@ -130,7 +157,7 @@ void Formula::interpretFormula(int numVecs, int numScalars) const
          }
          else
          {
-          throw_error("interpretFormula","vector field not correctly defined in your formula numerator!");
+          throw_error("interpretFormula","std::vector field not correctly defined in your formula numerator!");
          }
         } 
         
@@ -177,11 +204,11 @@ void Formula::interpretFormula(int numVecs, int numScalars) const
         {
         if( denominator_[i-1]=='e' && denominator_[i-2]=='v' )
          {
-            if(i==denominator_.size()-1) throw_error("interpretFormula","vector field number missing!");
+            if(i==denominator_.size()-1) throw_error("interpretFormula","std::vector field number missing!");
             
-            denominator_[i+1]=denominator_[i+1]-1; //for vectors just decrease the index
+            denominator_[i+1]=denominator_[i+1]-1; //for std::vectors just decrease the index
             
-             if(denominator_[i+1]-'0'>9) throw_error("interpretFormula","vector field number missing!");
+             if(denominator_[i+1]-'0'>9) throw_error("interpretFormula","std::vector field number missing!");
             
             denominator_.erase(denominator_.begin()+i-2,denominator_.begin()+i+1);
          }
@@ -224,8 +251,89 @@ void Formula::interpretFormula(int numVecs, int numScalars) const
     }
 
     std::cout << "interpreted denominator: " << (getDenominator()).c_str() << " \n";
+    
+    if(normalize_)
+     CheckNormalization( numVecs,  numScalars);
 }
 
+/*-----------------------------------------------------------------------------*/
+void Formula::CheckNormalization(int numVecs, int numScalars) const
+{
+ 
+ bool typeFound_=false;
+
+
+ for(unsigned int id=0; id<normalization_.size();id++)
+ {
+  
+  std::cout << "\n norm:" << normalization_[id];
+  
+  if(normalization_[id]==' ') continue;
+  if(normalization_[id]-'0' < 9) continue;
+  
+  if(!typeFound_)
+  {
+   //Add one for every Normalization
+   if(normalization_[id]=='D') 
+   {
+    typeFound_=true;
+    normalizationType_= normalization_[id];
+   }
+   else throw_error("Formula::CheckNormalization()" ,"Incorrect normalization (0)!");
+  }
+  else 
+  {
+   if(normalization_[id]=='m')
+   {
+    
+    if(normalization_[id+1]-'0' < 9)
+    {
+      normalizationId_.push_back(normalization_[id+1]-'0'-1);
+      normalizationClass_.push_back('m');
+      
+      //continue;
+    }
+    else  throw_error("Formula::CheckNormalization()" ,"Incorrect normalization (1)!");
+      
+   }
+   else if (normalization_[id]=='v')
+   {
+   
+    if(normalization_[id+1]-'0' < 9  )
+    {
+      normalizationClass_.push_back('v');
+      normalizationId_.push_back(normalization_[id+1]-'0'-1);
+    }
+    else  throw_error("Formula::CheckNormalization()" ,"Incorrect normalization (2)!");
+      
+   }
+   else if (normalization_[id]=='s')
+   {
+    
+    if(normalization_[id+1]-'0' < 9 )
+    {
+      normalizationId_.push_back(normalization_[id+1]-'0'+numVecs-2);
+      normalizationClass_.push_back('s');
+    }
+    else  throw_error("Formula::CheckNormalization()" ,"Incorrect normalization (3)!");
+      
+   }
+   else throw_error("Formula::CheckNormalization()" ,"Incorrect normalization! (4)");
+  
+  }
+ 
+ }
+ 
+ if(!typeFound_)
+   throw_error("Formula::CheckNormalization()" ,"Incorrect normalization! (6)");
+
+//  std::cout << "\nprinting normalizations...";
+//  for(unsigned int i=0;i<normalizationClass_.size();i++)
+//   std::cout << "\nnormClass: "<<normalizationClass_[i]<<" normId: "<<normalizationId_[i];
+
+ 
+
+}
 /*-----------------------------------------------------------------------------*/
 void Formula::CheckFormula() const
 {
@@ -266,8 +374,9 @@ void Formula::CheckFormula() const
     
    }   
   }
-  
+ 
 
+ 
 }
 
 /*-----------------------------------------------------------------------------*/
@@ -301,14 +410,68 @@ std::string Formula::getDenominator() const
   
  return out_;
 }
+
 /*-----------------------------------------------------------------------------*/
-void Formula::evaluate(std::vector< std::vector<double>  > * inputFields_, std::vector< double > * outputField_ )
+//normalizes the sample
+void Formula::normalize( std::vector< std::vector<double>  > * _sample, 
+                         std::vector< std::vector<double>* >*  _markers,
+                         std::vector< double > * outputField_ 
+                       )
+{
+ 
+
+ //Determine size of sample
+ int size_=outputField_->size();
+ 
+ 
+  //Loop sample vectors
+  for(int i=0;i<size_;i++)
+  {
+   bool haveValidOutput=true; 
+   double valueNumerator_=1;
+   //This is the drag force calculation
+   if(normalizationType_=='D') //'interphaseEC' is the identifier for interphase Exchange Coefficient. TODO; implement more identifiers if necessary
+   { 
+     //will use marker values to access vol fraction and slip velocity
+     if(normalizationClass_.size()!=3) throw_error("Formula::normalize()" ,"Wrong number of arguments!");    
+     double valueParticleVolFraction = getValueForNormalization(0,tmpIndex_[i],_sample,_markers);
+     double valueGasVelocity        = getValueForNormalization(1,tmpIndex_[i],_sample,_markers);
+	 double valueSolidsVelocity        = getValueForNormalization(2,tmpIndex_[i],_sample,_markers);
+     
+    
+   //  std::cout << "\n volFrac : " << valueParticleVolFraction << " slip : "<< valueSlipVelocity ;
+     
+    valueNumerator_ *= basicMultiphaseQty_->interphaseEC(valueParticleVolFraction, valueGasVelocity, valueSolidsVelocity);
+   } 
+    
+ 
+   //only insert in case we have a valid output
+   if(haveValidOutput && std::abs(valueNumerator_)>1e-15)
+   {
+       //TODO: normalize ONLY desired values of sample array
+       (*outputField_)[i] /= valueNumerator_;
+   }
+  }
+  
+  tmpIndex_.clear();
+}   
+
+
+/*-----------------------------------------------------------------------------*/
+void Formula::evaluate( std::vector< std::vector<double>  > * inputFields_, 
+                        std::vector< std::vector<double>* >*  _markers,
+                        std::vector< double > * outputField_,
+                        std::vector< std::vector<double> >*    newMarkers_
+                        
+                      )
 {
  int size_=(*inputFields_)[0].size();
-
+ 
  //start calculation
  for(int i=0;i<size_;i++)
  {
+  bool haveValidOutput=true;
+
   //Compute numerator
   double valueNumerator_=(*inputFields_)[(numerator_[0]-'0')][i];
   for(int n=1;n<int(numerator_.size());n++)
@@ -319,6 +482,11 @@ void Formula::evaluate(std::vector< std::vector<double>  > * inputFields_, std::
    if(numerator_[n]=='/') valueNumerator_/= (*inputFields_)[(numerator_[n+1]-'0')][i] + 1e-15;
    n++; //Advance another value because of operator
   }
+  if(limitNumeratorActive_)
+    haveValidOutput =  haveValidOutput 
+                     && testLimits(valueNumerator_, limitNumerator_, limitNumeratorSymmetric_);
+  
+    
 
   //Compute denominator
   double valueDenominator_ = 1.0;
@@ -335,8 +503,109 @@ void Formula::evaluate(std::vector< std::vector<double>  > * inputFields_, std::
      n++; //Advance another value because of operator
     }
   }
-  
-  outputField_->push_back(valueNumerator_ / valueDenominator_); 
+ 
+   
+   
+ if(limitDenominatorActive_)
+    haveValidOutput =  haveValidOutput
+                    && testLimits(valueDenominator_, limitDenominator_, limitDenominatorSymmetric_);
+
+  //only insert in case we have a valid output
+  if(haveValidOutput)
+  {
+   outputField_->push_back(valueNumerator_ / valueDenominator_); 
+   for(unsigned int mark=0;mark< newMarkers_->size();mark++)
+       (*newMarkers_)[mark].push_back((*_markers)[0][mark][i]);
+       
+   if(normalize_) tmpIndex_.push_back(i);
+  }    
+ 
  }
+ 
+ if(normalize_)
+    normalize( inputFields_, 
+               _markers,
+               outputField_ 
+             );
 }
 
+/*-----------------------------------------------------------------------------*/
+bool Formula::testLimits(double& value, double* limits, bool& isSymmetric) const
+{
+    //check the limits: limits[0] is lower limit, limits[1] is upper limit
+    if(isSymmetric) //this is typically the more useful one!
+    {
+        if( std::fabs(value)>limits[0] && std::fabs(value)<limits[1] )
+            return true;
+        else
+            return false;
+    }
+    else
+    {
+        if( value>limits[0] && value<limits[1] )
+            return true;
+        else
+            return false;
+    }
+}
+/*-----------------------------------------------------------------------------*/
+double Formula::getValueForNormalization(int id,
+                                         int index,
+                                         std::vector< std::vector<double> > *  _sample,
+                                         std::vector< std::vector<double>* >*  _markers 
+                                        ) const
+{
+ double value_=1;
+ 
+  if(normalizationClass_[id] == 'm')
+  {
+     value_ = (*_markers)[0][normalizationId_[id]][index];
+  }
+  else
+  {
+     value_ = (*_sample)[normalizationId_[id]][index];
+  }      
+  return value_;
+}
+/*-----------------------------------------------------------------------------*/
+void Formula::setMaxNumberOfFields(int maxMark_, int maxScal_, int maxVec_) const
+{
+    NofVecSample_  =  maxVec_;
+    NofScalSample_  =  maxScal_;
+    NofMarkSample_  =  maxMark_;
+    
+    if(normalize_)
+    {
+   
+     
+     for(unsigned int i=0; i<normalizationClass_.size(); i++)
+     {
+     
+    
+      if(normalizationClass_[i] == 'm')
+      {
+       if(normalizationId_[i] > NofMarkSample_ -1  )
+        throw_error("Formula::setMaxNumberOfFields()" ,"Markers defined in normalization do not match with markers defined in the sampling operation!!"); 
+        
+      }
+      else if(normalizationClass_[i] == 'v')
+      {
+       std::cout << "\nnormalizationId_[i]: " << normalizationId_[i] << " NofVecSample_ -1: " << NofVecSample_ -1;
+       if(normalizationId_[i] > NofVecSample_ -1  )
+        throw_error("Formula::setMaxNumberOfFields()" ,"Vectors defined in normalization do not match with vectors defined in the sampling operation!!"); 
+        
+      }
+      else if(normalizationClass_[i] == 's')
+      {
+       if(normalizationId_[i] > NofScalSample_ + NofVecSample_ -2  )
+        throw_error("Formula::setMaxNumberOfFields()" ,"Scalars defined in normalization do not match with scalars defined in the sampling operation!!"); 
+        
+      }
+ 
+     
+     }
+     
+     std::cout << "\nFields correctly registered in Formula class.";
+         
+    }
+}

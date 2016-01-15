@@ -89,7 +89,7 @@ label standardSearch::findCell
             for(int i=0;i<3;i++) position[i] = positions[index][i];
 
             // find cell
-            #if defined(versionDev)
+            #if defined(version30)
                 cellIDs[index][0] = particleCloud_.mesh().findCell(position, polyMesh::FACE_PLANES);
             #elif defined(version21)
                 cellIDs[index][0] = particleCloud_.mesh().findCell(position, polyMesh::FACEPLANES);
@@ -110,7 +110,7 @@ label standardSearch::findSingleCell
 ) const
 {
     // find cell
-    #if defined(versionDev)
+    #if defined(version30)
         return particleCloud_.mesh().findCell(position, polyMesh::FACE_PLANES);
     #elif defined(version21)
         return particleCloud_.mesh().findCell(position, polyMesh::FACEPLANES);

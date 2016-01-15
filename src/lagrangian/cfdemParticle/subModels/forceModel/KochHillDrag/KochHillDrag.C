@@ -131,9 +131,11 @@ void KochHillDrag::setForce() const
     const volScalarField& nufField = forceSubM(0).nuField();
     const volScalarField& rhoField = forceSubM(0).rhoField();
 
+
     //update force submodels to prepare for loop
     for (int iFSub=0;iFSub<nrForceSubModels();iFSub++)
         forceSubM(iFSub).preParticleLoop(forceSubM(iFSub).verbose());
+
 
     vector position(0,0,0);
     scalar voidfraction(1);
@@ -153,7 +155,9 @@ void KochHillDrag::setForce() const
 	scalar Vs(0);
 	scalar volumefraction(0);
     scalar betaP(0);
+
     scalar piBySix(M_PI/6);
+
 
     int couplingInterval(particleCloud_.dataExchangeM().couplingInterval());
 
@@ -190,14 +194,30 @@ void KochHillDrag::setForce() const
                     Ufluid = U_[cellI];
                 }
 
-                Us = particleCloud_.velocity(index);
-                Ur = Ufluid-Us;
                 ds = particleCloud_.d(index);
                 nuf = nufField[cellI];
                 rho = rhoField[cellI];
+
+                Us = particleCloud_.velocity(index);
+
+                //Update any scalar or vector quantity
+                for (int iFSub=0;iFSub<nrForceSubModels();iFSub++)
+                      forceSubM(iFSub).update(  scaleDia_, 
+                                                index, 
+                                                cellI, 
+                                                Ufluid, 
+                                                Us, 
+                                                nuf,
+                                                rho,
+                                                forceSubM(0).verbose()
+                                             );
+
+                Ur = Ufluid-Us;
                 magUr = mag(Ur);
 				Rep = 0;
+
                 Vs = ds*ds*ds*piBySix;
+
                 volumefraction = max(SMALL,min(1-SMALL,1-voidfraction));
 
                 if (magUr > 0)
@@ -273,11 +293,13 @@ void KochHillDrag::setForce() const
                 if(probeIt_)
                 {
                     #include "setupProbeModelfields.H"
-                    vValues.append(drag);           //first entry must the be the force
-                    vValues.append(Ur);
-                    sValues.append(Rep);
-                    sValues.append(betaP);
-                    sValues.append(voidfraction);
+                    // Note: for other than ext one could use vValues.append(x)
+                    // instead of setSize
+                    vValues.setSize(vValues.size()+1, drag);           //first entry must the be the force
+                    vValues.setSize(vValues.size()+1, Ur);
+                    sValues.setSize(sValues.size()+1, Rep); 
+                    sValues.setSize(sValues.size()+1, betaP);
+                    sValues.setSize(sValues.size()+1, voidfraction);
                     particleCloud_.probeM().writeProbe(index, sValues, vValues);
                 }    
             }

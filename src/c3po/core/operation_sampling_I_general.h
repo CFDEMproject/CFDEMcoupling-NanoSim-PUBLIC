@@ -66,6 +66,10 @@ namespace C3PO_NS
   void sample();
   void (SamplingGeneral::*run)();
   
+  bool selective_;
+  double minimum_[3];
+  double maximum_[3];
+  
  };
 
 }

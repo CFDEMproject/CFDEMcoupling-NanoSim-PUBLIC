@@ -15,7 +15,8 @@ CPPPO core
 This is the core library that can be linked to an interface module of choice. The core library provides functionality for 
 
 * Selecting cells or particles to be averaged over (so-called "selectors").
-* Spatially-anisotropic filtering on a structured, equidistant grid.
+* Spatially-anisotropic filtering on a structured/unsitructured grid.
+* Calculation of gradients and shear rates of filtered fields.
 * Operations on solid and fluid domain  (i.e., "operations", such as (i) filtering, (ii) sampling, and (iii) binning of data).
 * Input and output (to screen, log files, as well as JSON and HDF5 files).
 * MPI data exchange. CPPPO mainly uses collective communications in order to make data available to all processors during data filtering operations.

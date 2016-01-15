@@ -21,7 +21,7 @@ logfileName="log_$headerText"
 solverName="cfdemSolverPiso"
 nrProcs="4"
 machineFileName="none"   # yourMachinefileName | none
-debugMode="off"          # on | off| strict
+debugMode="off"          # on | off| strict | profile
 testHarnessPath="$CFDEM_TEST_HARNESS_PATH"
 runOctave="true"
 postproc="false"
@@ -87,6 +87,7 @@ cd $casePath/CFD
 cleanCase
 rm -r $casePath/CFD/clockData
 rm $casePath/CFD/octave/octave-workspace
+rm -r $casePath/CFD/hpctoolkit-*
 rm $casePath/DEM/post/*.*
 touch $casePath/DEM/post/.gitignore
 #rm $casePath/DEM/post/restart/*.*

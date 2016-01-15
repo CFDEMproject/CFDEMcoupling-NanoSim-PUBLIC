@@ -120,8 +120,8 @@ forceSubModel::forceSubModel
 {
     // init standard switch list
     int iCounter(0);
-    switchesNameList_[iCounter]="treatForceExplicit"; iCounter++;   //0
-    switchesNameList_[iCounter]="treatForceDEM";iCounter++;         //1
+    switchesNameList_[iCounter]="treatForceExplicit"; iCounter++;   //0 - will treat force explicity (based on slip velocity)
+    switchesNameList_[iCounter]="treatForceDEM";iCounter++;         //1 - will treat forces on DEM side only
     switchesNameList_[iCounter]="implForceDEM";iCounter++;          //2
     switchesNameList_[iCounter]="verbose";iCounter++;               //3
     switchesNameList_[iCounter]="interpolation";iCounter++;         //4
@@ -259,6 +259,7 @@ void forceSubModel::explicitCorr
     dragExplicit=vector::zero;
 }
 
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 void forceSubModel::explicitCorrScalar(scalar& sourceKImplicit, 
                                        scalar& sourceExplicit, 
                                        scalar& areaTimesTransferCoefficient, 
@@ -275,6 +276,33 @@ void forceSubModel::explicitCorrScalar(scalar& sourceKImplicit,
 
 }
 
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+void forceSubModel::update(            scalar&  deltaT, 
+                                       label    particleI, 
+                                       label    cellI, 
+                                       scalar&  scalToUpdate1, 
+                                       scalar&  scalToUpdate2, 
+                                       bool     verbose
+                          ) const
+{
+    //no action
+}
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+void forceSubModel::update(            scalar&  deltaT, 
+                                       label    particleI, 
+                                       label    cellI, 
+                                       vector&  vecToUpdate1, 
+                                       vector&  vecToUpdate2, 
+                                       scalar&  scalToUpdate1, 
+                                       scalar&  scalToUpdate2, 
+                                       bool     verbose
+                          ) const
+{
+    //no action
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 void forceSubModel::explicitLimit
 (
     vector& dragImplicit,

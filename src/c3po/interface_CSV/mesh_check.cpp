@@ -84,8 +84,8 @@ void CSVmesh::computeParallelDomain() const
  
  double delta_;
  
- //Warning:Vertical domain decomposition
- delta_ = ( MaxGlobalDomain_[2] - MinGlobalDomain_[2] ) / nprocs_;
+
+ delta_ = ( MaxGlobalDomain_[decDir_] - MinGlobalDomain_[decDir_] ) / nprocs_;
   
  for(int i=0;i<3;i++)
  {

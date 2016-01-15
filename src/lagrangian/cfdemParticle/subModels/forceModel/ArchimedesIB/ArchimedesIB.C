@@ -89,6 +89,9 @@ ArchimedesIB::ArchimedesIB
     // define switches which can be read from dict
     forceSubM(0).setSwitchesList(0,true); // activate treatExplicit switch
 
+    //set default switches (hard-coded default = false)
+    forceSubM(0).setSwitches(0,true);  // enable treatExplicit, otherwise this force would be implicit in slip vel! - IMPORTANT!
+
     // read those switches defined above, if provided in dict
     forceSubM(0).readSwitches();
 
@@ -130,7 +133,9 @@ void ArchimedesIB::setForce() const
         if(probeIt_)
         {
             #include "setupProbeModelfields.H"
-            vValues.append(force);           //first entry must the be the force
+            // Note: for other than ext one could use vValues.append(x)
+            // instead of setSize
+            vValues.setSize(vValues.size()+1, force);           //first entry must the be the force
             particleCloud_.probeM().writeProbe(index, sValues, vValues);
         }
 

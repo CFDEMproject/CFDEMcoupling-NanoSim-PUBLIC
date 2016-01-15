@@ -49,7 +49,9 @@ using std::ifstream;
 
 SelectorBase::SelectorBase(c3po *ptr,const char *name) : c3poBaseAccessible(ptr),
     name_(0),
-    scope_(0)
+    scope_(0),
+    currentCell_(-2),
+    currentPar_(-2)
 {
     int n = strlen(name) + 1;
     name_ = new char[n];
@@ -59,30 +61,16 @@ SelectorBase::SelectorBase(c3po *ptr,const char *name) : c3poBaseAccessible(ptr)
     scope_ = new char[n];
     strcpy(scope_,"selector_");
     strcat(scope_,name);
-
-   // if (comm().is_proc_0())
-    //{
-
-       // char jsonfile[200];
+    inside_=new bool[comm().nprocs()];
+ 
        if(input().verbose())
         printf("\nSelector with name %s initialized. \n", name_);
-      /*  sprintf(jsonfile,"settings/%s.json",scope_);
 
-        std::ifstream arch(jsonfile, std::ios::in);
-        if (!arch)
-            error().throw_error_one(FLERR,"can not open config file ",jsonfile);
-
-        output().write_screen_one("Parsing Selector config file");
-        output().write_log_one("Parsing Selector config file");
-
-    //}
-
-    //if(comm().is_parallel())
-       // error().throw_error_all(FLERR,"TODO: need to communicate settings in parallel in Input:: function");*/
 }
 
 SelectorBase::~SelectorBase()
 {
     delete name_;
+    delete inside_;
 }
 

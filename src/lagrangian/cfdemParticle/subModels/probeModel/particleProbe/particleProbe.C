@@ -127,7 +127,9 @@ void particleProbe::initialize(word typeName, word  logFileName) const
 {
   //update the list of items to be sampled
   itemCounter_ += 1; 
-  itemsToSample_.append(logFileName);
+  // Note: for other than ext one could use vValues.append(x)
+  // instead of setSize
+  itemsToSample_.setSize(itemsToSample_.size()+1, logFileName);
 
   // init environment
   //propsDict_ = particleCloud_.couplingProperties().subDict(typeName + "Props");
@@ -161,25 +163,27 @@ void particleProbe::initialize(word typeName, word  logFileName) const
       if (particleCloud_.mesh().name() != polyMesh::defaultRegion)
       {
                 probeSubDir = probeSubDir/particleCloud_.mesh().name();
-       }
+      }
       probeSubDir = probeSubDir/particleCloud_.mesh().time().timeName();
 
        fileName probeDir_;
        if (Pstream::parRun())
        {
-                // Put in undecomposed case
-                // (Note: gives problems for distributed data running)
-               probeDir_ = particleCloud_.mesh().time().path()/".."/probeSubDir;
-        }
-        else
-        {
-              probeDir_ = particleCloud_.mesh().time().path()/probeSubDir;
-        }
+           // Put in undecomposed case
+           // (Note: gives problems for distributed data running)
+           probeDir_ = particleCloud_.mesh().time().path()/".."/probeSubDir;
+       }
+       else
+       {
+           probeDir_ = particleCloud_.mesh().time().path()/probeSubDir;
+       }
 
     //manage files and OFstreams
     mkDir(probeDir_);
     sPtr = new OFstream(probeDir_/file_);
-    sPtrList_.append(sPtr);
+    // Note: for other than ext one could use xx.append(x)
+    // instead of setSize
+    sPtrList_.setSize(sPtrList_.size()+1, sPtr);
 
     //Clear the containers for the fields to be probed
     scalarFields_.clear();

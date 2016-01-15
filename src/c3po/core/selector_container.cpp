@@ -48,7 +48,8 @@ using namespace C3PO_NS;
 
 SelectorContainer::SelectorContainer(c3po *ptr) : c3poBase(ptr),
     selector_map_(new std::map<std::string,SelectorCreator>()),
-    ijk(false)
+    ijk(false),
+    particleBased_(false)
 {
   // fill map with all Selectors listed in style_selector.h
 
@@ -103,6 +104,7 @@ void SelectorContainer::parse_command(int narg,char const* const* arg)
     int n = strlen(arg[1]) + 1;   
     char *SelectorName = new char[n];
     strcpy(SelectorName,arg[1]);
+    
 
     if (selector_map_->find(arg[0]) != selector_map_->end())
     {
@@ -110,7 +112,6 @@ void SelectorContainer::parse_command(int narg,char const* const* arg)
         if(strstr(SelectorType, "cell") != NULL)
         {
             cellSelector_.push_back(selector_creator(c3po_ptr(), SelectorName ) );
-        //    printf("...this cell selector is registered with ID %d\n", cellSelector_.size()-1);
             cellSelector_[cellSelector_.size()-1]->init(narg, arg);
             
              if(strstr(SelectorType, "IJK") != NULL) ijk=true;
@@ -119,8 +120,14 @@ void SelectorContainer::parse_command(int narg,char const* const* arg)
         else if(strstr(SelectorType, "particle") != NULL)
         {
             particleSelector_.push_back(selector_creator(c3po_ptr(), SelectorName ) );
-        //    printf("...this particle selector is registered with ID %d\n", particleSelector_.size()-1);
             particleSelector_[particleSelector_.size()-1]->init(narg, arg);
+            
+        }
+        else if(strstr(SelectorType, "bubble") != NULL)
+        {
+            bubbleSelector_.push_back(selector_creator(c3po_ptr(), SelectorName ) );
+            bubbleSelector_[bubbleSelector_.size()-1]->init(narg, arg);
+            ijk=true;
         }
         else
         printf("FAIL: SelectorContainer PARSING: Selector type not properly set. Use 'cell', or 'particle' as the type. \n");
@@ -157,46 +164,33 @@ void SelectorContainer::parse_command(int narg,char const* const* arg)
 // ----------------------------------------------------------------------
 void SelectorContainer::begin_of_step()
 {
-    //TODO: put this into a separate function, such that NFilterCells are not always computed
-   // for(int iF=0; iF<filters_.size(); iF++)
-   // {
-    /*   
-      */ 
-         //compute the number of filter cells 
-       // setFilter(iF);
-        
-    //    for(int iOp=0; iOp<cellSelector_.size(); iOp++)
-            cellSelector_[iOp]->begin_of_step();
-
-      /*  for(int iOp=0; iOp<particleSelector_.size(); iOp++)
-            particleSelector_[iOp]->begin_of_step();
-  //  }
- */  
+   cellSelector_[iOp]->begin_of_step();
+  
 }
 
 // ----------------------------------------------------------------------
 void SelectorContainer::middle_of_step()
 {
-
- //   for(int iOp=0; iOp<cellSelector_.size(); iOp++)
-            cellSelector_[iOp]->middle_of_step();
-
-   // for(int iOp=0; iOp<particleSelector_.size(); iOp++)
-            particleSelector_[iOp]->middle_of_step();
-
+   cellSelector_[iOp]->middle_of_step();
 
 }
 // ----------------------------------------------------------------------
 void SelectorContainer::end_of_step()
 {
+  cellSelector_[iOp]->end_of_step();
 
-   // for(int iOp=0; iOp<cellSelector_.size(); iOp++)
-            cellSelector_[iOp]->end_of_step();
+}
 
-   // for(int iOp=0; iOp<particleSelector_.size(); iOp++)
-            particleSelector_[iOp]->end_of_step();
-
-
+// ----------------------------------------------------------------------
+void SelectorContainer::bubble_run()
+{
+  
+  for(unsigned int i=0;i<bubbleSelector_.size();i++)
+  {
+   bubbleSelector_[i]->begin_of_step();
+   bubbleSelector_[i]->middle_of_step();
+   bubbleSelector_[i]->end_of_step();
+  }
 }
 
 // ----------------------------------------------------------------------

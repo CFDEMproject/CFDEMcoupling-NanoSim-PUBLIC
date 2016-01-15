@@ -235,6 +235,54 @@ void Output::createQJsonArrays(std::string fileName_,std::string mainObject_, st
     
 }
 
+void Output::createQJsonArrays(std::string fileName_,std::string mainObject_, std::vector<std::string> ObjectName_,std::vector<int*> data_,int datanum, bool overwrite,std::vector<int> * datanumvec_) 
+{
+
+ QFile saveFile( fileName_.c_str() );
+ if (overwrite) 
+ { 
+   if (!saveFile.open(QIODevice::WriteOnly))
+     printf("Can not open savefile: %s",fileName_.c_str() );
+ }
+ else
+ {
+   if (!saveFile.open(QIODevice::ReadWrite))
+     printf("Can not open savefile: %s",fileName_.c_str() );
+     QByteArray    saveData = saveFile.readAll();
+     QJsonDocument loadDoc  = QJsonDocument::fromJson(saveData);
+ }
+  QJsonObject * Object_ = new QJsonObject;
+  QJsonObject * MainObject_= new QJsonObject;
+  
+  for(unsigned int i = 0; i < ObjectName_.size(); i++)
+      {
+         QJsonArray dataArray;
+         QString qstr(ObjectName_[i].c_str());
+
+         int datanum_;
+         if(datanum==-1 && datanumvec_!=NULL) datanum_=(*datanumvec_)[i];
+         else if (datanum > -1) datanum_=datanum;
+         else datanum_=0;
+         
+         for (int j = 0;j < datanum_; j++)
+           dataArray << QJsonValue(data_[i][j]);
+
+         (*Object_)[qstr] = dataArray;     
+      }
+
+ (*MainObject_)[mainObject_.c_str()]=(*Object_);
+ QJsonDocument * saveDoc = new QJsonDocument(*MainObject_);
+
+ saveFile.write( saveDoc->toJson() );
+ saveFile.close();
+ 
+ delete Object_;
+  delete MainObject_;
+  delete saveDoc;
+    
+}
+
+
 /* ---------------------------------------------------------------------------*/
 void Output::generateDir(std::string dir, bool &check) const
 {

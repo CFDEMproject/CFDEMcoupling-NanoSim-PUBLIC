@@ -61,6 +61,7 @@ class c3poBaseAccessible : c3poBase
     inline Error&          error()    const {return *error_;}
     inline Timer&          timer()    const {return *timer_;}
     inline c3poMesh&       mesh()     const {return *mesh_;}
+    inline multiphaseFlowBasic&  basicMultiphaseQty()     const {return *basicMultiphaseQty_;}
 
   private:
 

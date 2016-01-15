@@ -69,6 +69,13 @@ class Output : public c3poBase, public c3poBaseInterface
                                     int datanum = -1, bool overwrite=true, 
                                     std::vector<int> * datanumvec_ = NULL
                                    );
+                                   
+      static void createQJsonArrays(std::string,std::string,
+                                    std::vector<std::string>, std::vector<int*>, 
+                                    int datanum = -1, bool overwrite=true, 
+                                    std::vector<int> * datanumvec_ = NULL
+                                   );
+
 
       static void createQJsonArrays(std::string,std::string,
                                     std::vector<std::string>,std::vector<double**>,

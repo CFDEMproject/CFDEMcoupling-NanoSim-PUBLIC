@@ -48,6 +48,8 @@ namespace C3PO_NS
   private:
   double  buf[3];
   
+  int id_;
+  
   double                  r_;
   double*                 pos_;
   double*                 vel_;
@@ -58,6 +60,9 @@ namespace C3PO_NS
   
   std::vector<double*>    filteredVectors_;
   std::vector<double>     filteredScalars_;
+  std::vector<double* >   forceBuf_[1];
+  
+  double                  filterVolume_;
   
   
   public:
@@ -71,6 +76,8 @@ namespace C3PO_NS
   void settorque(double * x)               {torque_=x;};
   void setforce(std::vector< double* >* x) {force_=x;};
   void setCellCentreId_(int x)             {cellCentreId_=x;};    
+  void setId(int x)                        {id_=x;};
+  void setFilterVolume(double x)            {filterVolume_=x;};
   
   inline double*    getradius()            {return &r_;};
   inline double* getpos()                  {return pos_;};
@@ -78,6 +85,8 @@ namespace C3PO_NS
   inline double* gettorque()               {return torque_;};
   inline double* getforce(int i)           {return (*force_)[i];};
   inline int getNofForces()                {return force_->size();};
+  inline int getId()                       {return id_;};
+  inline double getFilterVolume()          {return filterVolume_;};
   
   double getTotalForce(int i);
   
@@ -85,6 +94,9 @@ namespace C3PO_NS
 
   inline double*  filteredVector(int i)  {return filteredVectors_[i];};
   inline double*  filteredScalar(int i)   {return &(filteredScalars_[i]);};
+  
+  int NofVF() {return filteredVectors_.size();};
+  int NofSF() {return filteredScalars_.size();};
   
   void  addVector();
   void  addScalar(); 

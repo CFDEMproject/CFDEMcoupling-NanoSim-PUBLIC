@@ -76,8 +76,12 @@ viscForce::viscForce
     forceSubM(0).setSwitchesList(4,true); // activate search for interpolate switch
     forceSubM(0).setSwitchesList(8,true); // activate scalarViscosity switch
 
-    // read those switches defined above, if provided in dict
-    forceSubM(0).readSwitches();
+    //set default switches (hard-coded default = false)
+    forceSubM(0).setSwitches(0,true);  // enable treatExplicit, otherwise this force would be implicit in slip vel! - IMPORTANT!
+
+    for (int iFSub=0;iFSub<nrForceSubModels();iFSub++)
+        forceSubM(iFSub).readSwitches();
+
 
     if (modelType_ == "B")
     {
@@ -182,8 +186,10 @@ void viscForce::setForce() const
                 if(probeIt_)
                 {
                     #include "setupProbeModelfields.H"
-                    vValues.append(force);  //first entry must the be the force
-                    sValues.append(Vs);
+                    // Note: for other than ext one could use vValues.append(x)
+                    // instead of setSize
+                    vValues.setSize(vValues.size()+1, force);           //first entry must the be the force
+                    sValues.setSize(sValues.size()+1, Vs);
                     particleCloud_.probeM().writeProbe(index, sValues, vValues);
                 }
             }

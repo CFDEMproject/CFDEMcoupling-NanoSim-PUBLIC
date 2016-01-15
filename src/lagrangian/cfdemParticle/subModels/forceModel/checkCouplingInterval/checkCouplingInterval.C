@@ -205,10 +205,12 @@ void checkCouplingInterval::setForce() const
         if(probeIt_)
         {
             #include "setupProbeModelfields.H"
-            sValues.append(minTauPAll);
-            sValues.append(minVcellByVparcel);
-            sValues.append(minStAll);
-            sValues.append(maxStAll);
+            // Note: for other than ext one could use vValues.append(x)
+            // instead of setSize
+            sValues.setSize(sValues.size()+1, minTauPAll);
+            sValues.setSize(sValues.size()+1, minVcellByVparcel);
+            sValues.setSize(sValues.size()+1, minStAll);
+            sValues.setSize(sValues.size()+1, maxStAll);
             particleCloud_.probeM().writeProbe(0, sValues, vValues);
         }
     }

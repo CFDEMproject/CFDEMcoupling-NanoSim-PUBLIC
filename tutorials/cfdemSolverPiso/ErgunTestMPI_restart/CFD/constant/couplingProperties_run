@@ -176,7 +176,7 @@ particleCellVolumeProps
 {
     upperThreshold 0.999;
     lowerThreshold 0.;
-    verbose;
+    verbose true;
 }
 
 oneWayVTKProps

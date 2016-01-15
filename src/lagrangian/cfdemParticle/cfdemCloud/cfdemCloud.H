@@ -145,6 +145,8 @@ protected:
 
     const word turbulenceModelType_;
 
+    mutable bool isLES_;
+
     mutable scalar cg_;
 
     bool cgOK_;
@@ -172,6 +174,9 @@ protected:
     #elif defined(version15)
         const incompressible::RASModel& turbulence_;
     #endif
+  
+    //Multiphase Turbulence (e.g., slip-induced turbulence)
+    mutable volScalarField turbulenceMultiphase_;
 
     autoPtr<forceModel>* forceModel_;
 
@@ -239,6 +244,8 @@ public:
 // public Member Functions
 
     // Access
+       bool isLES() const {return isLES_; };
+    
        bool debugMode(){ return debug_;};
 
        void checkCG(bool);
@@ -427,6 +434,10 @@ public:
         tmp<volScalarField> ddtVoidfraction() const;
 
         void calcDdtVoidfraction(volScalarField& voidfraction, volVectorField& Us) const;
+        
+        void calcMultiphaseTurbulence();
+
+        volScalarField& turbulenceMultiphase() const {return turbulenceMultiphase_;};
 
         //tmp<fvVectorMatrix> ddtVoidfractionU(volVectorField& ,volScalarField&) const;
 

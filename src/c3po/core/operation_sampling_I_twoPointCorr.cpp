@@ -48,6 +48,7 @@ License
 #include "output.h"
 
 using namespace C3PO_NS;
+using namespace std;
 
 TwoPointCorr::TwoPointCorr(c3po *ptr,const char *name) 
 : 
@@ -145,6 +146,8 @@ void TwoPointCorr::twoPointsCorr()
 
   double x1_;
   
+  if(lagrangian_) dataStorage().setProbes(probesName_);
+  
   alpha_=dataStorage().fSFid(alphaName_);
   if(alpha_==-1) error().throw_error_one("OperationSampling::TwoPointsCorr()",0,"ERROR: phase fraction field not registered!!"); 
  
@@ -240,12 +243,12 @@ void TwoPointCorr::twoPointsCorr()
           insertSample(sampleValue, x1_); //pushes the sample into the container
           if(input().verbose())
           {
-            cout << "\n"
+            std::cout << "\n"
                  << "alpha1: "<< alpha1 << "   alpha2: " << alpha2 << "    " 
                  << " Us1:( " <<  v1[0] << ","<< v1[1] << ","<< v1[2] << ")" << "    "       
                  << " Us2:( " <<  v2[0] << ","<< v2[1] << ","<< v2[2] << ")" << "    "
-                 << " sample: " <<  sampleValue << endl;
-       }
+                 << " sample: " <<  sampleValue << std::endl;
+          }
        
        
      
@@ -255,10 +258,10 @@ void TwoPointCorr::twoPointsCorr()
         insertSample(sampleValue, x1_,1); //pushes the sample into the container
         if(input().verbose())
         {
-            cout << " at cell: " << celli << endl
+            std::cout << " at cell: " << celli << std::endl
                  << " alpha1: " <<  alpha1 << "  "
                  << " alpha2: " <<  alpha2 << "  "
-                 << " sample: " <<  sampleValue << endl;
+                 << " sample: " <<  sampleValue << std::endl;
         }      
         
        }
@@ -297,6 +300,8 @@ void TwoPointCorr::twoPointsCorrFluct()
 
   double x1_;
   
+  if(lagrangian_) dataStorage().setProbes(probesName_);
+  
   alpha_=dataStorage().fSFid(alphaName_);
   if(alpha_==-1) error().throw_error_one("OperationSampling::TwoPointsCorr()",0,"ERROR: phase fraction field not registered!!"); 
  
@@ -304,6 +309,8 @@ void TwoPointCorr::twoPointsCorrFluct()
    totcells_=dataStorage().numOfParticles();
   else
    totcells_=mesh().NofCells();
+   
+  
 
   int j=component_;
     

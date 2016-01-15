@@ -59,7 +59,8 @@ class c3poBase
       error_(ptr->error_),
       dataStorageInternal_(ptr->dataStorageInternal_),
       timer_(ptr->timer_),
-      mesh_(ptr->mesh_)
+      mesh_(ptr->mesh_),
+      basicMultiphaseQty_(ptr->basicMultiphaseQty_)
     {}
 
     virtual ~c3poBase() {}
@@ -72,14 +73,15 @@ class c3poBase
     inline const OperationContainer&      operationContainer() const {return *operationContainer_;}
     inline const SelectorContainer&       selectorContainer() const {return *selectorContainer_;}
 
-    inline const Timer&          timer()          const {return *timer_;}
-    inline const Control&        control()        const {return *control_;}
-    inline const Comm&           comm()           const {return *comm_;}
-    inline const Input&          input()          const {return *input_;}
-    inline const Output&         output()         const {return *output_;}
-    inline const Error&          error()          const {return *error_;}
-    inline const DataStorage&    dataStorage()    const {return *dataStorageInternal_;}
-    inline const c3poMesh&           mesh()           const {return *mesh_;}
+    inline const Timer&                 timer()          const {return *timer_;}
+    inline const Control&               control()        const {return *control_;}
+    inline const Comm&                  comm()           const {return *comm_;}
+    inline const Input&                 input()          const {return *input_;}
+    inline const Output&                output()         const {return *output_;}
+    inline const Error&                 error()          const {return *error_;}
+    inline const DataStorage&           dataStorage()    const {return *dataStorageInternal_;}
+    inline const c3poMesh&              mesh()                          const {return *mesh_;}
+    inline const multiphaseFlowBasic&   basicMultiphaseQty()            const {return *basicMultiphaseQty_;}
 
   private:
 
@@ -95,6 +97,7 @@ class c3poBase
     DataStorage             *&dataStorageInternal_;     //data handling                                 
     Timer                   *&timer_;                   //timer performance recorder
     c3poMesh                *&mesh_;                    //mesh handling
+    multiphaseFlowBasic     *&basicMultiphaseQty_;      //multiphase reference quantities
 };
 
 } //end c3po_NS

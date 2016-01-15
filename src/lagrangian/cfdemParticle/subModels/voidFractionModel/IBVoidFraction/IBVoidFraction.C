@@ -229,12 +229,14 @@ void IBVoidFraction::setvoidFraction(double** const& mask,double**& voidfraction
 
               	    vector       nearestPosInMesh=vector(0.0,0.0,0.0);
                	    int copyCounter=0;
-               	    particlePosList.append(minPeriodicParticlePos);
+                    // Note: for other than ext one could use xx.append(x)
+                    // instead of setSize
+                    particlePosList.setSize(particlePosList.size()+1, minPeriodicParticlePos);
                	    
                	    //x-direction
                	    if(doPeriodicImage[0]!=0) 
                	    {
-               	        particlePosList.append( particlePosList[copyCounter]
+               	        particlePosList.setSize(particlePosList.size()+1, particlePosList[copyCounter]
                	                              + vector(
                	                                               (double)doPeriodicImage[0]
                	                                              *(globalBb.max()[0]-globalBb.min()[0]),
@@ -249,7 +251,7 @@ void IBVoidFraction::setvoidFraction(double** const& mask,double**& voidfraction
                	    {
                	       for(int yDirCop=0; yDirCop<=currCopyCounter; yDirCop++)
                	       {
-               	        particlePosList.append( particlePosList[yDirCop]
+               	        particlePosList.setSize(particlePosList.size()+1, particlePosList[yDirCop]
                	                              + vector(
                	                                              0.0,
                	                                               (double)doPeriodicImage[1]
@@ -265,7 +267,7 @@ void IBVoidFraction::setvoidFraction(double** const& mask,double**& voidfraction
                	    {
                	       for(int zDirCop=0; zDirCop<=currCopyCounter; zDirCop++)
                	       {
-               	        particlePosList.append( particlePosList[zDirCop]
+               	        particlePosList.setSize(particlePosList.size()+1, particlePosList[zDirCop]
                	                              + vector(
                	                                              0.0,
                	                                              0.0,
@@ -278,14 +280,14 @@ void IBVoidFraction::setvoidFraction(double** const& mask,double**& voidfraction
                	    }               	    
 
                     //add the nearest cell labels
-                    particleLabelList.append(particleCenterCellID);
+                    particleLabelList.setSize(particleLabelList.size()+1,particleCenterCellID);
                     for(int iPeriodicImage=1;iPeriodicImage<=copyCounter; iPeriodicImage++)
                     {
                         label copyCellID=-1;                                        
                         label partCellId = 
 
                         particleCloud_.mesh().findNearestCell(particlePosList[iPeriodicImage]);
-                        particleLabelList.append(partCellId);
+                        particleLabelList.setSize(particleLabelList.size()+1,partCellId);
 
                         buildLabelHashSet(radius, particlePosList[iPeriodicImage], particleLabelList[iPeriodicImage], hashSett, false);
                         
@@ -343,7 +345,7 @@ void IBVoidFraction::buildLabelHashSet
 )const
 {   
 
-    int numprocs, me;
+    int me;
     MPI_Comm_rank(MPI_COMM_WORLD, &me);
 
     if(initialInsert)  hashSett.insert(cellID);

@@ -60,6 +60,7 @@ SelectorBase(ptr,name)
   min_=new int[3*comm().nprocs()];
   tolerance_=c3po_ptr()->meshFilterWidthTolerance();
   cellCoord_=new double[3*comm().nprocs()];
+
  
 }
 
@@ -68,6 +69,7 @@ SelectorCellIJK::~SelectorCellIJK()
   delete cellList_;
   delete max_;
   delete min_;
+
  
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -101,7 +103,6 @@ int SelectorCellIJK::findNearestCell(double x, double y, double z)
 void SelectorCellIJK::begin_of_step()
 {
   selectorContainer().resetCellsInFilter();
-  currentCell_= *(selectorContainer().currentCell());
   
   RunSelector();
   
@@ -109,11 +110,13 @@ void SelectorCellIJK::begin_of_step()
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 void SelectorCellIJK::RunSelector()
 {
- timer().stamp();
+
  fillArrays(); 
  boundaryCorrections();
  int nprocs=comm().nprocs();
  double temp_[nprocs];
+ double vol[nprocs];
+ 
  
  double r_ = (*selectorContainer().getFilterSize(0)) * (*selectorContainer().getFilterSize(0));
  double delta_[3];
@@ -128,66 +131,117 @@ void SelectorCellIJK::RunSelector()
  {
   
   int count_=0;
-  double vol=0.0;
+  vol[p]=0.0;
   bool loop=true;
+  bool loop2=false;
   bool periodic[3];
   int index_=3*p;
 
  //Check if in "dummy mode"
- if(p==comm().me())
-  if(! (currentCell_< mesh().MaxNofCellsProc()[p]) )
+ 
+  if((currentCell_>= mesh().MaxNofCellsProc()[p]))
   {
    loop=false;
   }
-
   
+  if(selectorContainer().particleBased() && (currentPar_>= dataStorage().getNofParticlesProc(p) ))
+  {
+   loop=false;
+  }
+ 
+  if(!inside_[p]) loop = false;
   
  //Check if within the boundaries. This can save computational time but pose some constraints on the domain decomposition technique.
  //check for periodic and additional check for boundaries
- for(int j=0;j<3;j++)
-  if(max_[index_+j] > min_[index_+j] )
-  {
-   if( ( mesh().localIJKMin()[j]  >= max_[index_ +j] ) || (  mesh().localIJKMax()[j]  <= min_[index_ +j] )) 
+ if(loop)
+ {
+  for(int j=0;j<3;j++)
+   if(max_[index_+j] > min_[index_+j] )
    {
-    loop=false;
-    break;
-   }
-   
-   if (  mesh().localIJKMin()[j] >= min_[index_ +j] )    min_[index_ +j] = mesh().localIJKMin()[j];
-   if (  mesh().localIJKMax()[j] <= max_[index_ +j] )   max_[index_ +j] = mesh().localIJKMax()[j];
-   periodic[j]=false;
-  }
-  else 
-  {
-   periodic[j]=true;
-   
-  
-   if( ( ( mesh().localIJKMin()[j] )   >=  max_[index_ +j] ) && ( ( mesh().localIJKMax()[j] ) <= min_[index_ +j] ) ) 
-   {
-    loop=false;
-    break;
-   }
-   
-   if( mesh().localIJKMin()[j] >= min_[index_ +j] )
-   {
-    min_[index_ +j] = mesh().localIJKMin()[j];
-    max_[index_ +j] = mesh().localIJKMax()[j];
+    if( ( mesh().localIJKMin()[j]  >= max_[index_ +j] ) || (  mesh().localIJKMax()[j]  <= min_[index_ +j] )) 
+    {
+     loop=false;
+     break;
+    }
     
+    if (  mesh().localIJKMin()[j] >= min_[index_ +j] )    min_[index_ +j] = mesh().localIJKMin()[j];
+    if (  mesh().localIJKMax()[j] <= max_[index_ +j] )   max_[index_ +j] = mesh().localIJKMax()[j];
     periodic[j]=false;
-   } 
-   
-   if( mesh().localIJKMax()[j] <= max_[index_ +j] )
+   }
+   else 
    {
-    min_[index_ +j] = mesh().localIJKMin()[j];
-    max_[index_ +j] = mesh().localIJKMax()[j];
+    periodic[j]=true;
     
-    periodic[j]=false;
-   } 
+   
+    if( ( ( mesh().localIJKMin()[j] )   >=  max_[index_ +j] ) && ( ( mesh().localIJKMax()[j] ) <= min_[index_ +j] ) ) 
+    {
+     loop=false;
+     break;
+    }
+    
+    if( mesh().localIJKMin()[j] >= min_[index_ +j] )
+    {
+     min_[index_ +j] = mesh().localIJKMin()[j];
+     max_[index_ +j] = mesh().localIJKMax()[j];
+     
+     periodic[j]=false;
+    } 
+   
+    if( mesh().localIJKMax()[j] <= max_[index_ +j] )
+    {
+     min_[index_ +j] = mesh().localIJKMin()[j];
+     max_[index_ +j] = mesh().localIJKMax()[j];
+     
+     periodic[j]=false;
+    } 
   
-  } 
+   } 
  
-  if(selectorContainer().filterType()==0) checkR=&SelectorCellIJK::checkPositionSphereDummy;
-  else if(selectorContainer().filterType()==1) checkR=&SelectorCellIJK::checkPositionPeriodicSphere;
+   if(selectorContainer().filterType()==0) checkR=&SelectorCellIJK::checkPositionSphereDummy;
+   else if(selectorContainer().filterType()==1) checkR=&SelectorCellIJK::checkPositionPeriodicSphere;
+  
+  if(selectorContainer().filterType()==0)
+  {
+   bool check[3];
+   for(int i=0;i<3;i++)
+   {
+    if(
+       (
+        !periodic_[i]                                 &
+        (mesh().localIJKMin()[i]  > min_[index_ + i]) &&
+        (mesh().localIJKMax()[i]  < max_[index_ + i]) &&
+        loop
+       )
+      
+       ||
+       
+       (
+         periodic_[i]                                &&
+        (mesh().localIJKMax()[i]  < max_[index_ + i] ) &&
+        loop
+       )
+      
+       ||
+      
+       (
+         periodic_[i]                                &&
+        (mesh().localIJKMin()[i]  > min_[index_ + i]) &&
+        loop     
+       )
+    
+     ) check[i]=true;
+    else check[i]=false;
+ 
+   }
+ 
+   if( check[0] && check[1] && check[2])
+   {
+    loop=false;
+    loop2=true;
+   }
+  }
+ }
+  
  //Entering the loop
   if(loop) 
   { 
@@ -256,19 +310,33 @@ void SelectorCellIJK::RunSelector()
          
 
         }
-   }   
-  
-  MPI_Barrier(MPI_COMM_WORLD);
-  
-  vol = count_ * ( *(mesh().CellVol(0)) ); 
- 
-  MPI_Allreduce(&vol, &temp_[p], 1, MPI_DOUBLE,
-               MPI_SUM, MPI_COMM_WORLD);
-  
+   }
+   else if(loop2)
+   {
+    int NofCells_=mesh().NofCells();
+    for(int cell=0; cell<NofCells_; cell++)
+    {
    
-   selectorContainer().writeKey(p,count_);
+     count_++;
+     selectorContainer().addCellInFilter(cell); 
+     
+    }
+   }
+      
+  
+  //MPI_Barrier(MPI_COMM_WORLD);
+  
+  vol[p] = count_ * ( *(mesh().CellVol(0)) ); 
+ 
+  selectorContainer().writeKey(p,count_);
  }
-
+ 
+ timer().stamp(TIME_SELECTOR);
+ timer().stamp();
+ MPI_Allreduce(&vol[0], &temp_[0], nprocs, MPI_DOUBLE,
+               MPI_SUM, MPI_COMM_WORLD);
+ timer().stamp(TIME_SELECTOR_MPI);
+ timer().stamp();
   selectorContainer(). addFilterVolume(temp_[comm().me()]);
 
  timer().stamp(TIME_SELECTOR);
@@ -277,82 +345,210 @@ void SelectorCellIJK::RunSelector()
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 void SelectorCellIJK::fillArrays()
 {
- int currCellIJK_[3];
- int nprocs=comm().nprocs();
+ timer().stamp();
  
- //Every processor has to know the coordinates of every current cell
- 
- CellID2ijk(currentCell_, &currCellIJK_[0]);
- for(int i=0; i<3;i++)
- {
-  currCellIJK_[i] +=  mesh().localIJKMin()[i];   //This is the global IJK address for the current cell
- }
+ if(selectorContainer().particleBased())
+ {  
 
+  currentPar_=selectorContainer().currentParticle();
+
+  int currParCoord_[3];
+  int nprocs=comm().nprocs();
   
- double currCellCoord_[3];
-
- if(selectorContainer().filterType()==1)
- { 
-  //Every processor has to know the coordinates of every current cell
-  if(currentCell_ < mesh().MaxNofCellsProc()[comm().me()])
-  {
+  //Every processor has to know the coordinates of every current particle
+  if(currentPar_ <  dataStorage().getNofParticlesProc(comm().me()))
+  { 
    for(int i=0; i<3;i++)
-    currCellCoord_[i]= *(mesh().CellCentre(currentCell_)[i]);
+    currParCoord_[i]= lround( (dataStorage().getParticle(currentPar_)->getpos()[i] -  mesh().dGlobalMin()[i]  ) / mesh().cellSize()[i]);
   }
   else
   {
    for(int i=0; i<3;i++)
-    currCellCoord_[i]=  mesh().dMin()[comm().me()*3 +i] + mesh().dMax()[comm().me()*3 + i]/2;
+     currParCoord_[i]=  -1;
   }
- }
   
-  
- int displ[nprocs];
- int numfrags[nprocs];
-        
- int sum = 0;
-     
- for (int i = 0; i < nprocs; ++i) {
+  int displ[nprocs];
+  int numfrags[nprocs];
          
-        displ[i] = sum;
-        sum +=3; 
-        numfrags[i]=3; 
-        }
+  int sum = 0;
+      
+  for (int i = 0; i < nprocs; ++i) {
+          
+         displ[i] = sum;
+         sum +=3; 
+         numfrags[i]=3; 
+         }
+  timer().stamp(TIME_SELECTOR);
+  timer().stamp();
+  
+  MPI_Barrier(MPI_COMM_WORLD);  
+  MPI_Allgatherv(currParCoord_, numfrags[comm().me()], MPI_INT,  cellList_, numfrags, displ, MPI_INT,MPI_COMM_WORLD);
+  
+  double parcoordinate_[3];
+  
+  if(currentPar_ <  dataStorage().getNofParticlesProc(comm().me()))
+  { 
+   for(int i=0; i<3;i++)
+    parcoordinate_[i]= dataStorage().getParticle(currentPar_)->getpos()[i]; 
+  }
+  else
+  {
+   for(int i=0; i<3;i++)
+    parcoordinate_[i]= 0.0; 
+  
+  }
+  
+  if(selectorContainer().filterType()==1) 
+   MPI_Allgatherv(parcoordinate_, numfrags[comm().me()], MPI_DOUBLE,  cellCoord_, numfrags, displ, MPI_DOUBLE,MPI_COMM_WORLD);
+   
+  timer().stamp(TIME_SELECTOR_MPI);
+  timer().stamp();
+  
+  //The absolute box size for every cell is calculated
+  for(int p=0;p<nprocs;p++)
+  {
+   
+   inside_[p]=true;
+   
+   //Check when the filter is selective
+   if(selectorContainer().selectiveFilter())
+   {
+   
+     for(int i=0;i<3;i++)
+     {
+      if(  cellList_[p*3+i]  > ( selectorContainer().maxToFilter()[i] -   mesh().dGlobalMin()[i]  )/( mesh().cellSize()[i] )
+         || 
+          cellList_[p*3+i] < ( selectorContainer().minToFilter()[i] -   mesh().dGlobalMin()[i]  )/( mesh().cellSize()[i] )
+                
+        )
+        inside_[p]=false;
+    
+     }
+    }
+  
+   
+   
+   if(currentPar_ <  dataStorage().getNofParticlesProc(p) && inside_[p])
+   {
+    for(int j=0;j<3;j++)
+    {
+     max_[3*p+j] = cellList_[3*p+j] + selectorContainer().filterWidth()[j];
+     min_[3*p+j] = cellList_[3*p+j] - selectorContainer().filterWidth()[j] +1;   
+    }
+   }
+   else
+   {
+    inside_[p]=false;
+   }
+  }
+  timer().stamp(TIME_SELECTOR);
+  
+ }
+ else
+ {
+  
+  currentCell_= *(selectorContainer().currentCell());
+  
+  int currCellIJK_[3];
+  int nprocs=comm().nprocs();
  
- MPI_Barrier(MPI_COMM_WORLD);  
- MPI_Allgatherv(currCellIJK_, numfrags[comm().me()], MPI_INT,  cellList_, numfrags, displ, MPI_INT,MPI_COMM_WORLD);
- if(selectorContainer().filterType()==1) 
-  MPI_Allgatherv(currCellCoord_, numfrags[comm().me()], MPI_DOUBLE,  cellCoord_, numfrags, displ, MPI_DOUBLE,MPI_COMM_WORLD);
+  //Every processor has to know the coordinates of every current cell
+  
+  CellID2ijk(currentCell_, &currCellIJK_[0]);
+  for(int i=0; i<3;i++)
+  {
+   currCellIJK_[i] +=  mesh().localIJKMin()[i];   //This is the global IJK address for the current cell
+  }
+
+  
+  double currCellCoord_[3];
+
+  if(selectorContainer().filterType()==1)
+  { 
+   //Every processor has to know the coordinates of every current cell
+   if(currentCell_ < mesh().MaxNofCellsProc()[comm().me()])
+   {
+    for(int i=0; i<3;i++)
+     currCellCoord_[i]= *(mesh().CellCentre(currentCell_)[i]);
+   }
+   else
+   {
+    for(int i=0; i<3;i++)
+     currCellCoord_[i]=  mesh().dMin()[comm().me()*3 +i] + mesh().dMax()[comm().me()*3 + i]/2;
+   }
+  }
+  
+  
+  int displ[nprocs];
+  int numfrags[nprocs];
+         
+  int sum = 0;
+     
+  for (int i = 0; i < nprocs; ++i) {
+          
+         displ[i] = sum;
+         sum +=3; 
+         numfrags[i]=3; 
+         }
+ 
+  MPI_Barrier(MPI_COMM_WORLD);  
+  MPI_Allgatherv(currCellIJK_, numfrags[comm().me()], MPI_INT,  cellList_, numfrags, displ, MPI_INT,MPI_COMM_WORLD);
+  if(selectorContainer().filterType()==1) 
+   MPI_Allgatherv(currCellCoord_, numfrags[comm().me()], MPI_DOUBLE,  cellCoord_, numfrags, displ, MPI_DOUBLE,MPI_COMM_WORLD);
  
 
  
  //The absolute box size for every cell is calculated
- for(int p=0;p<nprocs;p++)
- {
-  if(currentCell_ < mesh().MaxNofCellsProc()[p])
+  for(int p=0;p<nprocs;p++)
   {
-   for(int j=0;j<3;j++)
+   
+        inside_[p]=true;
+   
+   //Check when the filter is selective
+   if(selectorContainer().selectiveFilter())
    {
-    max_[3*p+j] = cellList_[3*p+j] + selectorContainer().filterWidth()[j];
-    min_[3*p+j] = cellList_[3*p+j] - selectorContainer().filterWidth()[j] +1;   
+   
+     for(int i=0;i<3;i++)
+     {
+      if(  cellList_[3*p+i]  > ( selectorContainer().maxToFilter()[i] -  mesh().dGlobalMin()[i] )/( mesh().cellSize()[i] )
+         || 
+           cellList_[3*p+i]  < ( selectorContainer().minToFilter()[i] -  mesh().dGlobalMin()[i] )/( mesh().cellSize()[i] )
+                
+       )
+      inside_[p]=false;
+    
+     }
+    }
+   
+
+  
+   if(currentCell_ < mesh().MaxNofCellsProc()[p] && inside_[p])
+   {
+    for(int j=0;j<3;j++)
+    {
+     max_[3*p+j] = cellList_[3*p+j] + selectorContainer().filterWidth()[j];
+     min_[3*p+j] = cellList_[3*p+j] - selectorContainer().filterWidth()[j] +1;   
+    }
+   }
+   else
+   {
+    for(int j=0;j<3;j++)
+    {
+     max_[3*p+j] = cellList_[3*p+j];
+     min_[3*p+j] = cellList_[3*p+j];   
+    }  
    }
   }
-  else
-  {
-   for(int j=0;j<3;j++)
-   {
-    max_[3*p+j] = cellList_[3*p+j];
-    min_[3*p+j] = cellList_[3*p+j];   
-   }  
-  }
- }
  
+ }
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 void SelectorCellIJK::boundaryCorrections()
 {
   int nprocs=comm().nprocs();
   for(int p=0; p<nprocs;p++)
+  {
+   if(!inside_[p]) continue;
    for(int j=0;j<3;j++)
    {
     //If wall, go ahead
@@ -370,7 +566,7 @@ void SelectorCellIJK::boundaryCorrections()
      if (min_[3*p+j] <  0 )                                     min_[3*p+j] +=  mesh().cell_global()[j];
     } 
    }
-
+  }
 }
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 int SelectorCellIJK::ijk2CellIDOF(int i_add_correct, int j_add_correct, int k_add_correct) 
