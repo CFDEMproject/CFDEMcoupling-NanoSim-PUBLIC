@@ -619,7 +619,7 @@ void scalarGeneralExchange::manipulateScalarField(volScalarField& explicitEulerS
                     Pout << "Rep = " << Rep << endl;
                     Pout << "Pr/Sc = " << Pr << endl;
                     Pout << "Nup/Shp = " << (this->*Nusselt)(Rep,Pr,voidfraction) << endl;
-                    Pout << "partDatTransCoeff: " <<  partDatTransCoeff_[index][0] << endl;
+                    if(validPartTransCoeff_) Pout << "partDatTransCoeff: " <<  partDatTransCoeff_[index][0] << endl;
                     Pout << "voidfraction = " << voidfraction << endl;
                     Pout << "partDat_[index][0] = " << partDat_[index][0] << endl  ;
                     Pout << "fluidValue = " << fluidValue << endl  ;
