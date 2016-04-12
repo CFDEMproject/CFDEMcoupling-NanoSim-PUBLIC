@@ -126,6 +126,21 @@ eulerianScalarField::eulerianScalarField
                    << abort(FatalError);    
 
 
+    //Report options for cp 
+    if(fieldType_=="temperature")
+    {
+        if(cpVolumetric_!=0.0 && cpVolumetricFieldName_!="na")
+        FatalError <<"eulerianScalarField:: You have specified 'cpVolumetric' and 'cpVolumetricFieldName' in a dictionary in '/constant'. This might be confusing. Please unset one of these two inputs to avoid confusion. \n" 
+                   << abort(FatalError);    
+
+        if(cpVolumetricFieldName_=="na" || !updateMixtureProperties_) //use also if mixture properties are not updated
+            Info << "eulerianScalarField:: will use the following FIXED VOLUMETRIC HEAT CAPACITY: " 
+                 << cpVolumetric_ << " [J/K/m³]" << endl;
+        else
+            Info << "eulerianScalarField:: will use the a SPATIALLY-VARAIBLE VOLUMETRIC HEAT CAPACITY with name: " << cpVolumetricFieldName_ << endl;
+    }
+
+
 }
 
 

@@ -115,6 +115,8 @@ protected:
     bool                haveTemperatureEqn_;          //indicator for temperature field or not
 
     bool                useLiMason_;                  //switch to activate calculation using Li-Mason
+    mutable bool        useGeneralCorrelation_;       //switch to activate calculation using a generalized correlation
+    mutable scalarList  generalCorrelationParameters_; //parameter for general correlation
 
     scalar              lambda_;                      // fluid thermal conductivity [W/(m*K)]
     scalar              Prandtl_;                     // Prandtl number
@@ -147,6 +149,7 @@ protected:
 
     double NusseltLiMason(double Re, double Pr, double voidfraction) const;
     double NusseltDeenEtAl(double Re, double Pr, double voidfraction)  const;
+    double NusseltGeneralCorrelation(double Re, double Pr, double voidfraction) const;
 
     double (scalarGeneralExchange::*Nusselt)(double Re, double Pr, double voidfraction) const;
 

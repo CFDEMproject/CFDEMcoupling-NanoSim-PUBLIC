@@ -56,7 +56,7 @@ generalManual::generalManual
     rhoMix_
     (   IOobject
         (
-            propsDict_.lookup("rhoMixFieldName"),
+            propsDict_.lookupOrDefault<word>("rhoMixFieldName","rhoMixDefault"),
             sm.mesh().time().timeName(),
             sm.mesh(),
             IOobject::NO_READ,
@@ -68,7 +68,7 @@ generalManual::generalManual
     cpRho_
     (   IOobject
         (
-            propsDict_.lookup("cpVolumetricFieldName"),
+            propsDict_.lookupOrDefault<word>("cpVolumetricFieldName","cpRhoDefault"),
             sm.mesh().time().timeName(),
             sm.mesh(),
             IOobject::NO_READ,
@@ -82,7 +82,7 @@ generalManual::generalManual
     propsDict_.readIfPresent("ScT", ScT_);
     propsDict_.readIfPresent("PrT", PrT_);
     
-    Info << "Using ScT = " << ScT_ << " and PrT " << PrT_ << endl;
+    Info << "generalManual:: Using the following turbulent dispersion coefficients: ScT = " << ScT_ << " and PrT " << PrT_ << endl;
 
     eulerianFields_ = new autoPtr<eulerianScalarField>[eulerianFieldList_.size()];
     for (int i=0;i<eulerianFieldList_.size();i++)

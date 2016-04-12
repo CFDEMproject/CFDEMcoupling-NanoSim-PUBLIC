@@ -93,6 +93,7 @@ scalarGeneralExchange::scalarGeneralExchange
     validPartFluid_(false),
     haveTemperatureEqn_(false),
     useLiMason_(false),
+    useGeneralCorrelation_(false),
     lambda_(readScalar(propsDict_.lookup("lambda"))),
     Prandtl_(readScalar(propsDict_.lookup("Prandtl"))),
     eulerianFieldNames_( generalPropsDict_.lookup("eulerianFields")), 
@@ -121,8 +122,22 @@ scalarGeneralExchange::scalarGeneralExchange
         useLiMason_=readBool(propsDict_.lookup ("useLiMason"));
         Info << "setting for useLiMason: " << useLiMason_ << endl;
     }
+    if (propsDict_.found("useGeneralCorrelation"))
+    {
+        useGeneralCorrelation_=readBool(propsDict_.lookup ("useGeneralCorrelation"));
+        Info << "setting for useGeneralCorrelation: " << useGeneralCorrelation_ << endl;
+    }
+    if(useLiMason_ && useGeneralCorrelation_)
+        FatalError <<"You cannot set 'useLiMason' AND 'useGeneralCorrelation' to true. Just set one seeting to true.  \n" 
+                   << abort(FatalError);
+
     if(useLiMason_)
         Nusselt=&scalarGeneralExchange::NusseltLiMason;
+    else if(useGeneralCorrelation_)
+    {
+    	generalCorrelationParameters_ = propsDict_.lookup("generalCorrelationParameters");
+        Nusselt=&scalarGeneralExchange::NusseltGeneralCorrelation;
+    }
     else
         Nusselt=&scalarGeneralExchange::NusseltDeenEtAl;
 
@@ -276,6 +291,7 @@ scalarGeneralExchange::scalarGeneralExchange
     validPartFluid_(false),
     haveTemperatureEqn_(false),
     useLiMason_(false),
+    useGeneralCorrelation_(false),
     lambda_(readScalar(propsDict_.lookup("lambda"))),
     Prandtl_(readScalar(propsDict_.lookup("Prandtl"))),
     eulerianFieldNames_( generalPropsDict_.lookup("eulerianFields")), 
@@ -299,13 +315,28 @@ scalarGeneralExchange::scalarGeneralExchange
         Info << "limiting eulerian source field to: " << maxSource_ << endl;
     }
 
-    if (propsDict_.found("useLiMason")) //TODO for Schmidt Number correlation 
+    if (propsDict_.found("useLiMason"))
     {
         useLiMason_=readBool(propsDict_.lookup ("useLiMason"));
         Info << "setting for useLiMason: " << useLiMason_ << endl;
     }
+    if (propsDict_.found("useGeneralCorrelation"))
+    {
+        useGeneralCorrelation_=readBool(propsDict_.lookup ("useGeneralCorrelation"));
+        Info << "setting for useGeneralCorrelation: " << useGeneralCorrelation_ << endl;
+    }
+
+    if(useLiMason_ && useGeneralCorrelation_)
+        FatalError <<"You cannot set 'useLiMason' AND 'useGeneralCorrelation' to true. Just set one seeting to true.  \n" 
+                   << abort(FatalError);
+
     if(useLiMason_)
         Nusselt=&scalarGeneralExchange::NusseltLiMason;
+    else if(useGeneralCorrelation_)
+    {
+    	generalCorrelationParameters_ = propsDict_.lookup("generalCorrelationParameters");
+        Nusselt=&scalarGeneralExchange::NusseltGeneralCorrelation;
+    }
     else
         Nusselt=&scalarGeneralExchange::NusseltDeenEtAl;
 
@@ -605,10 +636,9 @@ void scalarGeneralExchange::manipulateScalarField(volScalarField& explicitEulerS
                     partDatFluid_[index][0]      = fluidValue;
 
 
-                if( forceSubM(0).verbose())
+                if( forceSubM(0).verbose() )
                 {
                     Pout << "fieldName = " << fieldName << endl;
-                    Pout << "partTransCoeffName = " << partTransCoeffName << endl;
                     Pout << "index    = " <<index << endl;
                     Pout << "partFlux = " << tmpPartFlux << endl;
                     Pout << "magUr = " << magUr << endl;
@@ -619,6 +649,7 @@ void scalarGeneralExchange::manipulateScalarField(volScalarField& explicitEulerS
                     Pout << "Rep = " << Rep << endl;
                     Pout << "Pr/Sc = " << Pr << endl;
                     Pout << "Nup/Shp = " << (this->*Nusselt)(Rep,Pr,voidfraction) << endl;
+                    if(validPartTransCoeff_) Pout << "partTransCoeffName = " << partTransCoeffName << endl;
                     if(validPartTransCoeff_) Pout << "partDatTransCoeff: " <<  partDatTransCoeff_[index][0] << endl;
                     Pout << "voidfraction = " << voidfraction << endl;
                     Pout << "partDat_[index][0] = " << partDat_[index][0] << endl  ;
@@ -729,6 +760,32 @@ double scalarGeneralExchange::NusseltLiMason(double Rep, double Pr, double voidf
               * voidfraction*voidfraction*voidfraction*sqrt(voidfraction) //voidfraction^3.5
               * pow(Rep,1.8);
     }
+
+    return Nup;
+}
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+double scalarGeneralExchange::NusseltGeneralCorrelation(double Rep, double Pr, double voidfraction) const
+{
+    //WARNING: This function my be fitted to data for a limited range of Reynolds number!!
+    double Nup(0);
+    double PrPowOneThird  = pow(Pr,0.3333333333) ;
+    Nup = 
+       (  generalCorrelationParameters_[0] 
+        + generalCorrelationParameters_[1] * voidfraction 
+        + generalCorrelationParameters_[2] * voidfraction * voidfraction ) 
+     *
+       (  generalCorrelationParameters_[3] 
+        + generalCorrelationParameters_[4]
+       * pow(Rep,0.2) 
+       * PrPowOneThird 
+       )
+     + 
+     (  generalCorrelationParameters_[5]
+      + generalCorrelationParameters_[6] * voidfraction 
+      + generalCorrelationParameters_[7] * voidfraction * voidfraction ) 
+     * pow(Rep,0.7)  
+     * PrPowOneThird ;
 
     return Nup;
 }
