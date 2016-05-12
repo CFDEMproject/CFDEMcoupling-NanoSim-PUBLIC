@@ -40,7 +40,7 @@ generalManualProps
                        //will only be used if cpVolumetricFieldName, or updateMixtureProperties = false
 
 //    cpVolumetricFieldName   "cpRho"; 
-//    rhoMixFieldName         "rhoMix"; 
+    rhoMixFieldName         "rhoMix"; 
 
     eulerianFields
     (

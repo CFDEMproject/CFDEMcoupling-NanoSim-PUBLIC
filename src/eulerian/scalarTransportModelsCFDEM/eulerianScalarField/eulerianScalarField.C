@@ -88,8 +88,10 @@ eulerianScalarField::eulerianScalarField
         ),
         0.0*mSource_ /( m_ + dimensionedScalar("dummy", m_.dimensions(), 1e-32) ) //initi with zero
     ),
-    fieldType_("undefined"),
-    fvOptions_(sm.mesh())
+    fieldType_("undefined")
+    #ifndef versionExt32
+    ,fvOptions_(sm.mesh())
+    #endif
 {
 
 
@@ -108,8 +110,9 @@ eulerianScalarField::eulerianScalarField
              << endl;
     }
 
-
+    #ifndef versionExt32
     fvOptions_.reset(dict.subDict("fvOptions"+fieldName_));
+    #endif
 
     if( (cpVolumetricFieldName_=="na"||!updateMixtureProperties_) && cpVolumetric_<=0.0)
         FatalError <<"You did not specify a cpVolumetricFieldName (or you do not updateMixtureProperties) and also cpVolumetric is zero (or negative)! Either provide the field name, or set cpVolumetric to a reasonable value. \n" 
@@ -124,8 +127,7 @@ eulerianScalarField::eulerianScalarField
     if(speciesID_>-1 && updateMixtureProperties_ && (rhoCarrier_<=0 || cpCarrier_<=0) )
         FatalError <<"You like to update the phase properties, but density and cp of the carrier phase are not specified or zero \n" 
                    << abort(FatalError);    
-
-
+                   
     //Report options for cp 
     if(fieldType_=="temperature")
     {
@@ -139,8 +141,6 @@ eulerianScalarField::eulerianScalarField
         else
             Info << "eulerianScalarField:: will use the a SPATIALLY-VARAIBLE VOLUMETRIC HEAT CAPACITY with name: " << cpVolumetricFieldName_ << endl;
     }
-
-
 }
 
 
@@ -241,12 +241,15 @@ void eulerianScalarField::update(surfaceScalarField phi, volScalarField voidfrac
        fvm::laplacian(nuEff/Sc*voidfraction, m_, laplacianScheme) 
      + mSource_
      + fvm::Sp(mSourceKImpl_, m_)
+     #ifndef versionExt32
      + fvOptions_(m_)
-
+     #endif
     );
 
     mEqn.relax();
+    #ifndef versionExt32
     fvOptions_.constrain(mEqn);
+    #endif
     mEqn.solve();
 
 

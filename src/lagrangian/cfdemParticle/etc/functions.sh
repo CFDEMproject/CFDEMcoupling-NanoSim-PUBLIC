@@ -153,7 +153,7 @@ compileSolver()
     
     # compile parallel?
     if [[ $parallel == "true" ]]; then
-        wmake 2>&1 | tee -a $logpath/$logfileName &
+        wmake 2>&1 | tee -a $logpath/$logfileName #&
     else
         wmake 2>&1 | tee -a $logpath/$logfileName
     fi
@@ -278,21 +278,21 @@ cleanCFDEM()
     #cleaning libraries
     whitelist="$CFDEM_SRC_DIR/lagrangian/cfdemParticle/etc/library-list.txt"
     echo ""
-    echo "Please provide the libraries to be cleaned in the $CWD/$whitelist file."
+    echo "Please provide the libraries to be cleaned in the $whitelist file."
 
-    if [ ! -f "$CWD/$whitelist" ];then
+    if [ ! -f "$whitelist" ];then
         echo "$whitelist does not exist in $CWD. Nothing will be done."
         NLINES=0
         COUNT=0
     else
-        NLINES=`wc -l < $CWD/$whitelist`
+        NLINES=`wc -l < $whitelist`
         COUNT=0
     fi
 
     while [ $COUNT -lt $NLINES ]
     do
             let COUNT++  
-            LINE=`head -n $COUNT $CWD/$whitelist | tail -1`
+            LINE=`head -n $COUNT $whitelist | tail -1`
   
             # white lines
             if [[ "$LINE" == "" ]]; then
@@ -336,21 +336,21 @@ cleanCFDEM()
     #cleaning solvers
     whitelist="$CFDEM_SRC_DIR/lagrangian/cfdemParticle/etc/solver-list.txt"
     echo ""
-    echo "Please provide the solvers to be cleaned in the $CWD/$whitelist file."
+    echo "Please provide the solvers to be cleaned in the $whitelist file."
 
-    if [ ! -f "$CWD/$whitelist" ];then
+    if [ ! -f "$whitelist" ];then
         echo "$whitelist does not exist in $CWD. Nothing will be done."
         NLINES=0
         COUNT=0
     else
-        NLINES=`wc -l < $CWD/$whitelist`
+        NLINES=`wc -l < $whitelist`
         COUNT=0
     fi
 
     while [ $COUNT -lt $NLINES ]
     do
             let COUNT++  
-            LINE=`head -n $COUNT $CWD/$whitelist | tail -1`
+            LINE=`head -n $COUNT $whitelist | tail -1`
   
             # white lines
             if [[ "$LINE" == "" ]]; then
@@ -419,6 +419,9 @@ DEMrun()
     elif [ $debugMode == "strict" ]; then
         #debugMode="valgrind --leak-check=full -v --trace-children=yes --track-origins=yes" 
         debugMode="valgrind --tool=memcheck --track-origins=yes --leak-check=yes --show-reachable=yes --num-callers=20 --track-fds=yes"  
+    elif [ $debugMode == "strictXML" ]; then
+        #debugMode="valgrind --leak-check=full -v --trace-children=yes --track-origins=yes" 
+        debugMode="valgrind --tool=memcheck --leak-check=yes --leak-check-heuristics=stdstring,length64,newarray,multipleinheritance --show-reachable=no --num-callers=20 --track-fds=yes --xml=yes --xml-file=valgrind.xml"  
     else
         debugMode=""
     fi
@@ -467,7 +470,10 @@ parDEMrun()
         debugMode="valgrind"
     elif [ $debugMode == "strict" ]; then
         #debugMode="valgrind --leak-check=full -v --trace-children=yes --track-origins=yes" 
-        debugMode="valgrind --tool=memcheck --leak-check=yes --show-reachable=yes --num-callers=20 --track-fds=yes"  
+        debugMode="valgrind --tool=memcheck --track-origins=yes --leak-check=yes --show-reachable=yes --num-callers=20 --track-fds=yes"  
+    elif [ $debugMode == "strictXML" ]; then
+        #debugMode="valgrind --leak-check=full -v --trace-children=yes --track-origins=yes" 
+        debugMode="valgrind --tool=memcheck --leak-check=yes --leak-check-heuristics=stdstring,length64,newarray,multipleinheritance --show-reachable=no --num-callers=20 --track-fds=yes --xml=yes --xml-file=valgrind.xml"  
     else
         debugMode=""
     fi
@@ -625,15 +631,19 @@ parCFDDEMrun()
     machineFileName="$7"
     debugMode="$8"
     reconstuctCase="$9"
-    cleanCase="$10"
+    decomposeCase=${10}
     #--------------------------------------------------------------------------------#
 
     if [ $debugMode == "on" ]; then
         debugMode="valgrind"
     elif [ $debugMode == "strict" ]; then
         #debugMode="valgrind --leak-check=full -v --trace-children=yes --track-origins=yes" 
-        debugMode="valgrind --tool=memcheck --leak-check=yes --show-reachable=yes --num-callers=20 --track-fds=yes"
+        debugMode="valgrind --tool=memcheck --track-origins=yes --leak-check=yes --show-reachable=yes --num-callers=20 --track-fds=yes"
+    elif [ $debugMode == "strictXML" ]; then
+        #debugMode="valgrind --leak-check=full -v --trace-children=yes --track-origins=yes" 
+        debugMode="valgrind --tool=memcheck --leak-check=yes --leak-check-heuristics=stdstring,length64,newarray,multipleinheritance --show-reachable=no --num-callers=20 --track-fds=yes --xml=yes --xml-file=valgrind.xml"  
     elif [ $debugMode == "profile" ]; then
+        # make sure you did hpcstruct before
         debugMode="hpcrun"
         rm -r $casePath/CFD/hpctoolkit-$solverName-measurements
     else
@@ -646,11 +656,16 @@ parCFDDEMrun()
     #- change path
     cd $casePath/CFD
 
-    #- remove old data
-    rm -rf processor*
-
     #- decompose case
-    decomposePar
+    if [[ $decomposeCase == "false" ]]; then   
+        echo "Not decomposing case."
+    else
+        echo "Decomposing case."
+        #- remove old data
+        rm -rf processor*
+
+        decomposePar
+    fi
 
     #- make proc dirs visible
     count=0

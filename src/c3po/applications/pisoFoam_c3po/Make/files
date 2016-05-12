@@ -1,3 +1,0 @@
-pisoFoam_c3po.C
-
-EXE = $(FOAM_USER_APPBIN)/c3po_pisoFoam

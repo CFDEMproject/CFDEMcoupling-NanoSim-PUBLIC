@@ -103,7 +103,9 @@ generalManual::generalManual
 
 // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
 generalManual::~generalManual()
-{}
+{
+    delete [] eulerianFields_;
+}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
@@ -113,9 +115,12 @@ void generalManual::createFields()
 // ************************************************************
 void generalManual::setSources()
 {
-    //Loop through all eulerian fields and 
+    //Loop through all Eulerian fields and and set fields
     for (int i=0;i<eulerianFieldList_.size();i++)
             eulerianScalarF(i).pullCloudFields();
+
+    //Send Sources to External Code (i.e., Lagrangian arrays handled by LIGGGHTS)
+    particleCloud_.giveUSERdata();
 }
 
 // ************************************************************
@@ -125,7 +130,7 @@ void generalManual::evolveFields()
     if(updateMixtureProperties_)
     {
         if(eulerianScalarF(0).fieldType()=="Temperature" )
-            FatalError <<"generalManual: first eulerianField is temperatur, but we need a species. Please re-order your eulerianFields in the input dict. \n" 
+            FatalError <<"generalManual: first eulerianField is temperature, but we need a species. Please re-order your eulerianFields in the input dict. \n" 
                        << abort(FatalError);  
 
         forAll(rhoMix_.internalField(), iter)
@@ -196,6 +201,7 @@ const eulerianScalarField& generalManual::eulerianTemperatureF()
     return eulerianFields_[idTemp_];
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
 
 } // End namespace Foam
 
