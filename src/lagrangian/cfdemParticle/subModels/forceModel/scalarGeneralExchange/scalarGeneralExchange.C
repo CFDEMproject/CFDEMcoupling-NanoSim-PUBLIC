@@ -94,7 +94,7 @@ scalarGeneralExchange::scalarGeneralExchange
     haveTemperatureEqn_(false),
     useLiMason_(false),
     useGeneralCorrelation_(false),
-    generalCorrelationParameters_(propsDict_.lookupOrDefault<scalarList>("generalCorrelationParameters",scalarList(-1))),
+    generalCorrelationParameters_(propsDict_.lookupOrDefault<scalarList>("generalCorrelationParameters",scalarList(0))),
     lambda_(readScalar(propsDict_.lookup("lambda"))),
     Prandtl_(readScalar(propsDict_.lookup("Prandtl"))),
     eulerianFieldNames_( generalPropsDict_.lookup("eulerianFields")), 
