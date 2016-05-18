@@ -83,7 +83,7 @@ void generalPhaseChange::update()
     //Apply the phaseChange operation (loop through list of models)
     //phaseChangeModels must ADD any sources to the eulerianScalarFields 
     //(since there might be sources due to particle-fluid interactions)
-    const volScalarField&     voidfraction(particleCloud_.mesh().lookupObject<volScalarField> ("voidfraction"));
+    const volScalarField&     voidfraction(particleCloud_.mesh().lookupObject<volScalarField> (voidfractionFieldName_));
     for (int i=0;i<phaseChangeModelList_.size();i++)
     {
         int idFieldFrom = phaseChangeModelRef(i).fromID();

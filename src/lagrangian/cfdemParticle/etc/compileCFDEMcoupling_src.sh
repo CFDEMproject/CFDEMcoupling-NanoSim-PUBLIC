@@ -2,8 +2,10 @@
 
 #===================================================================#
 # compile routine for CFDEMcoupling source, part of CFDEMproject 
+# will create all lnInclude directories before compilation in order
+# to avoid missing headers in foreign libraries
 # Christoph Goniva - May. 2012, DCS Computing GmbH
-# update: Stefan Radl (TU Graz, Jan 2014)
+# update: Stefan Radl (TU Graz, April 2016)
 #===================================================================#
  
 #- include functions
@@ -16,6 +18,14 @@ logDir="log"
 cd $CFDEM_SRC_DIR/lagrangian/cfdemParticle/etc
 mkdir -p $logDir
 
+#================================================================================#
+# Must compile (but not clean) LIGGGHTS libraries, since it could have been 
+# compiled before with the compileLIGGGHTS command
+# Then, check successful compilation
+#================================================================================#
+bash $CFDEM_SRC_DIR/lagrangian/cfdemParticle/etc/compileLIGGGHTS_lib.sh noClean
+echo "...now checking if LIGGGHTS libraries are compiled that are needed for CFDEM's src packages."
+bash $CFDEM_SRC_DIR/lagrangian/cfdemParticle/etc/compileLIGGGHTS_lib.sh false
 
 #================================================================================#
 # compile src

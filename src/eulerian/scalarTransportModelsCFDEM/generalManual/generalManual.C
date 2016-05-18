@@ -48,6 +48,8 @@ generalManual::generalManual
 :
     scalarTransportModel(dict,sm),
     propsDict_(dict.subDict(typeName + "Props")),
+    phiFieldName_(propsDict_.lookupOrDefault<word>("phiFieldName", "phi")),
+    voidfractionFieldName_(propsDict_.lookupOrDefault<word>("voidfractionFieldName", "voidfraction")),
     eulerianFieldList_(propsDict_.lookup("eulerianFields")),
     ScT_(0.7),
     PrT_(0.7),
@@ -158,8 +160,8 @@ void generalManual::evolveFields()
 
     //==============================
     // get references
-    const surfaceScalarField& phi(particleCloud_.mesh().lookupObject<surfaceScalarField> ("phi"));
-    const volScalarField&     voidfraction(particleCloud_.mesh().lookupObject<volScalarField> ("voidfraction"));
+    const surfaceScalarField& phi(particleCloud_.mesh().lookupObject<surfaceScalarField> (phiFieldName_));
+    const volScalarField&     voidfraction(particleCloud_.mesh().lookupObject<volScalarField> (voidfractionFieldName_));
     //==============================
 
     //Loop through all eulerian fields and update them

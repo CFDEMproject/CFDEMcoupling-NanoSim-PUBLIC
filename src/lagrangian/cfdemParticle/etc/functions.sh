@@ -224,10 +224,8 @@ compileLMPlib()
     headerText="$3"
     makeFileName="$4"
     libraryPath="$5"
+    compilationModeSwitch="$6"
     #--------------------------------------------------------------------------------#
-
-    #- clean up old log file
-    rm $logpath/$logfileName
 
     #- change path
     if [ -d "$libraryPath" ]; then
@@ -238,29 +236,64 @@ compileLMPlib()
         read
     fi
 
-    #- header
-    echo 2>&1 | tee -a $logpath/$logfileName
-    echo "//   $headerText   //" 2>&1 | tee -a $logpath/$logfileName
-    echo 2>&1 | tee -a $logpath/$logfileName
-
-    #- write path
-    pwd 2>&1 | tee -a $logpath/$logfileName
-    echo 2>&1 | tee -a $logpath/$logfileName
-
-    if [[ $makeFileName == "Makefile.Install" ]]; then
-        echo "using Install.sh"
-        bash Install.sh 0 2>&1 | tee -a $logpath/$logfileName
-        bash Install.sh 1 2>&1 | tee -a $logpath/$logfileName
+    #Just check if library is there and and abort if not
+    if [ $compilationModeSwitch == "false" ]; then
+          if [ -d "$libraryPath" ]; then
+                    echo "lib path $libraryPath EXISTS!"
+                    cd $libraryPath
+                    if [ -e *.a ]; then
+                        echo "... and contains the following libraries: "
+                        ls $libraryPath/*.a
+                        echo "Congratulations! Check passed! "
+                    else
+                        echo ""
+                        echo "ERROR!!"
+                        echo "... could not find Library!"
+                        echo "... it should contain a *.a file to be linked to the final application."
+                        echo "You need to ensure all libaries in this path are compiled."
+                        echo "$libraryPath"
+                        echo "are compiled. Therefore, you may want to use an appropriate script that compiles these libraries first. (e.g. cfdemCompLIGlibs)"
+                        read
+                    fi
+          fi
     else
-        #- clean up
-        echo "make clean" 2>&1 | tee -a $logpath/$logfileName
+        if [ $compilationModeSwitch == "noClean" ]; then
+            echo "compileLMPlib will skip the cleaning step!"
+            echo ""
+        else
+            #Clean and then compile library
+            #- clean up old log file
+            rm $logpath/$logfileName
+        fi
+        #- header
         echo 2>&1 | tee -a $logpath/$logfileName
-        make -f $makeFileName clean 2>&1 | tee -a $logpath/$logfileName
+        echo "//   $headerText   //" 2>&1 | tee -a $logpath/$logfileName
+        echo 2>&1 | tee -a $logpath/$logfileName
 
-        #- compile
-        echo "make" 2>&1 | tee -a $logpath/$logfileName
+        #- write path
+        pwd 2>&1 | tee -a $logpath/$logfileName
         echo 2>&1 | tee -a $logpath/$logfileName
-        make -f $makeFileName 2>&1 | tee -a $logpath/$logfileName
+
+        if [[ $makeFileName == "Makefile.Install" ]]; then
+            echo "using Install.sh"
+            bash Install.sh 0 2>&1 | tee -a $logpath/$logfileName
+            bash Install.sh 1 2>&1 | tee -a $logpath/$logfileName
+        else
+            if [ $compilationModeSwitch == "noClean" ]; then
+                echo "compileLMPlib will skip the cleaning step!"
+                echo ""
+            else
+                #- clean up
+                echo "make clean" 2>&1 | tee -a $logpath/$logfileName
+                echo 2>&1 | tee -a $logpath/$logfileName
+                make -f $makeFileName clean 2>&1 | tee -a $logpath/$logfileName
+            fi
+
+            #- compile
+            echo "make" 2>&1 | tee -a $logpath/$logfileName
+            echo 2>&1 | tee -a $logpath/$logfileName
+            make -f $makeFileName 2>&1 | tee -a $logpath/$logfileName
+        fi
     fi
 }
 #==================================#
@@ -376,6 +409,10 @@ cleanCFDEM()
             fi
             wclean    
     done
+
+    #**********************************************
+    #cleaning logs
+    rm $CFDEM_SRC_DIR/lagrangian/cfdemParticle/etc/log/log_*
 }
 #==================================#
 

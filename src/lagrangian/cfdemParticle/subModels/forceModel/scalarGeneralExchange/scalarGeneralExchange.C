@@ -655,6 +655,7 @@ void scalarGeneralExchange::setupModel() const
         Nusselt=&scalarGeneralExchange::NusseltLiMason;
     else if(useGeneralCorrelation_)
     {
+    	//generalCorrelationParameters_ = propsDict_.lookup("generalCorrelationParameters");
         if(generalCorrelationParameters_.size()<8 || generalCorrelationParameters_.size()>8)
             FatalError <<"The data array specified as 'generalCorrelationParameters' is too short or too long. Must specify exactly 8 values. You specified: \n" 
                        << generalCorrelationParameters_ << endl

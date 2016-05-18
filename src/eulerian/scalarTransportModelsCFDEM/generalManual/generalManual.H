@@ -47,6 +47,10 @@ protected:
 
     dictionary                      propsDict_;
 
+    word                            phiFieldName_;
+
+    word                            voidfractionFieldName_;
+
     const wordList                  eulerianFieldList_;
 
     autoPtr<eulerianScalarField>*   eulerianFields_;

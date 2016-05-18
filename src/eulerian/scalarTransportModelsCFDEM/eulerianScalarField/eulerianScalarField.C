@@ -233,7 +233,7 @@ void eulerianScalarField::update(surfaceScalarField phi, volScalarField voidfrac
 
        fvm::ddt(voidfraction, m_)               //This is the material derivative in a modified form
      - fvm::Sp(fvc::ddt(voidfraction), m_)      //Needed since phi is (U_face * voidfraction)!
-     + fvm::div(phi, m_, divScheme)
+     + fvm::div(phi, m_, divScheme)             //This phi must be SUPERFICIAL! (i.e., U_face * voidfraction)!
      - fvm::Sp(fvc::div(phi), m_)
 
      ==

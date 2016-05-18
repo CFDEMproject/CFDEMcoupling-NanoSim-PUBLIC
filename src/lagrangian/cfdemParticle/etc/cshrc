@@ -18,7 +18,7 @@
 ##- source cfdem env vars
 #setenv CFDEM_VERSION PUBLIC
 #setenv CFDEM_PROJECT_DIR $HOME/CFDEM/CFDEMcoupling-$CFDEM_VERSION-$WM_PROJECT_VERSION
-#setenv CFDEM_SRC_DIR $CFDEM_PROJECT_DIR/src
+#setenv CFDEM_SRC_DIR $CFDEM_PROJECT_DIR/src/lagrangian/cfdemParticle
 #setenv CFDEM_SOLVER_DIR $CFDEM_PROJECT_DIR/applications/solvers
 #setenv CFDEM_DOC_DIR $CFDEM_PROJECT_DIR/doc
 #setenv CFDEM_UT_DIR $CFDEM_PROJECT_DIR/applications/utilities
@@ -159,6 +159,9 @@ alias cfdemCleanCFDEM 'bash $CFDEM_SRC_DIR/lagrangian/cfdemParticle/etc/cleanCFD
 #- shortcut to compile LIGGGHTS + sublibraries
 alias cfdemCompLIG 'bash $CFDEM_SRC_DIR/lagrangian/cfdemParticle/etc/compileLIGGGHTS.sh'
 
+#- shortcut to compile LIGGGHTS' sublibraries
+alias cfdemCompLIGlibs 'bash $CFDEM_SRC_DIR/lagrangian/cfdemParticle/etc/compileLIGGGHTS_lib.sh'
+
 #- shortcut to compile CFDEMcoupling +LIGGGHTS
 alias cfdemCompCFDEMall 'bash $CFDEM_SRC_DIR/lagrangian/cfdemParticle/etc/compileCFDEMcoupling_all.sh'
 
@@ -178,8 +181,8 @@ alias cfdemCompCFDEMuti 'bash $CFDEM_SRC_DIR/lagrangian/cfdemParticle/etc/compil
 alias cfdemTestTUT 'bash $CFDEM_SRC_DIR/lagrangian/cfdemParticle/etc/testTutorials.sh'
 
 #- shortcut to change dictionaries according to OF version
-#cfdemChangeTutOFversion() { bash $CFDEM_SRC_DIR/lagrangian/cfdemParticle/etc/OFVersionChange/shellScripts/cfdemChangeTutOFversion_all.sh $argv; }
-#setenv -f cfdemChangeTutOFversion
+cfdemChangeTutOFversion() { bash $CFDEM_SRC_DIR/lagrangian/cfdemParticle/etc/OFVersionChange/shellScripts/cfdemChangeTutOFversion_all.sh $1; }
+export -f cfdemChangeTutOFversion
 
 #- shortcut to visualize the clock model data
 alias vizClock 'python $CFDEM_UT_DIR/vizClock/matPlot.py'
