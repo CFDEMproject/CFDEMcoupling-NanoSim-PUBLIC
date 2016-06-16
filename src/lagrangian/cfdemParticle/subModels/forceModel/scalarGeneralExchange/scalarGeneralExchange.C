@@ -112,12 +112,20 @@ scalarGeneralExchange::scalarGeneralExchange
         probeIt_=!Switch(propsDict_.lookup("suppressProbe"));
     if(probeIt_)
     {
-        particleCloud_.probeM().initialize(typeName, typeName+".logDat");
+      forAll(eulerianFieldNames_, fieldIt)
+      {
+        particleCloud_.probeM().initialize(typeName, typeName + "_" + eulerianFieldNames_[fieldIt] + ".logDat");
         particleCloud_.probeM().vectorFields_.append("Urel");               //first entry must the be the vector to probe
-        particleCloud_.probeM().scalarFields_.append("Nu");                 //other are debug
-        particleCloud_.probeM().scalarFields_.append("Rep");                //other are debug
+        if(eulerianFieldNames_[fieldIt]==tempFieldName_) //this is the temperature
+        {
+            particleCloud_.probeM().scalarFields_.append("Rep");            
+            particleCloud_.probeM().scalarFields_.append("Nu"); 
+        }
+        else                
+            particleCloud_.probeM().scalarFields_.append("Sh"); 
         particleCloud_.probeM().scalarFields_.append("exchangeRate");
         particleCloud_.probeM().writeHeader();
+      }
     }
 
     for (int iFSub=0;iFSub<nrForceSubModels();iFSub++)
@@ -188,12 +196,20 @@ scalarGeneralExchange::scalarGeneralExchange
         probeIt_=!Switch(propsDict_.lookup("suppressProbe"));
     if(probeIt_)
     {
-        particleCloud_.probeM().initialize(dictName, dictName+".logDat");
+      forAll(eulerianFieldNames_, fieldIt)
+      {
+        particleCloud_.probeM().initialize(typeName, typeName + "_" + eulerianFieldNames_[fieldIt] + ".logDat");
         particleCloud_.probeM().vectorFields_.append("Urel");               //first entry must the be the vector to probe
-        particleCloud_.probeM().scalarFields_.append("Nu");                 //other are debug
-        particleCloud_.probeM().scalarFields_.append("Rep");                //other are debug
-        particleCloud_.probeM().scalarFields_.append("exchangeRate"+dictName);
+        if(eulerianFieldNames_[fieldIt]==tempFieldName_) //this is the temperature
+        {
+            particleCloud_.probeM().scalarFields_.append("Rep");            
+            particleCloud_.probeM().scalarFields_.append("Nu");                 //other are debug
+        }
+        else                
+            particleCloud_.probeM().scalarFields_.append("Sh"); 
+        particleCloud_.probeM().scalarFields_.append("exchangeRate");
         particleCloud_.probeM().writeHeader();
+      }
     }
 
     for (int iFSub=0;iFSub<nrForceSubModels();iFSub++)
@@ -261,6 +277,7 @@ void scalarGeneralExchange::manipulateScalarField(volScalarField& explicitEulerS
                                      partHeatTransCoeffName_, partHeatTransCoeffPositionInRegister_,
                                      partHeatFluidName_,      partHeatFluidPositionInRegister_
                                    );
+        particleCloud_.probeM().setOutputFile(typeName+"_"+tempFieldName_+".logDat");
     }
     else
     {
@@ -272,7 +289,9 @@ void scalarGeneralExchange::manipulateScalarField(volScalarField& explicitEulerS
                                      partSpeciesTransCoeffNames_[speciesID], partSpeciesTransCoeffPositionInRegister_[speciesID],
                                      partSpeciesFluidNames_[speciesID],      partSpeciesFluidPositionInRegister_[speciesID]
                                    );
+        particleCloud_.probeM().setOutputFile(typeName + "_" + fieldName + ".logDat");
     }
+
 
     //==============================
     // get references
@@ -318,7 +337,6 @@ void scalarGeneralExchange::manipulateScalarField(volScalarField& explicitEulerS
     #include "resetVoidfractionInterpolator.H"
     #include "resetUInterpolator.H"
     #include "resetFluidScalarFieldInterpolator.H"
-    #include "setupProbeModel.H"
 
     for(int index = 0;index < particleCloud_.numberOfParticles(); ++index)
     {
@@ -406,8 +424,9 @@ void scalarGeneralExchange::manipulateScalarField(volScalarField& explicitEulerS
                     // Note: for other than ext one could use vValues.append(x)
                     // instead of setSize
                     vValues.setSize(vValues.size()+1, Ur);
+                    if(speciesID<0) //this is the temperature, then also report Rep 
+                        sValues.setSize(sValues.size()+1, Rep);
                     sValues.setSize(sValues.size()+1, (this->*Nusselt)(Rep,Pr,voidfraction));
-                    sValues.setSize(sValues.size()+1, Rep);
                     sValues.setSize(sValues.size()+1, tmpPartFlux);
                     particleCloud_.probeM().writeProbe(index, sValues, vValues);
                 }

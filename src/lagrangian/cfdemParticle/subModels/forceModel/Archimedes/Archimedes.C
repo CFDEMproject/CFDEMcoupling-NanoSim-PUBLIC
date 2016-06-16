@@ -77,7 +77,7 @@ Archimedes::Archimedes
         probeIt_=!Switch(propsDict_.lookup("suppressProbe"));
     if(probeIt_)
     {
-        particleCloud_.probeM().initialize(typeName, "archimedesF.logDat");
+        particleCloud_.probeM().initialize(typeName, typeName+".logDat");
         particleCloud_.probeM().vectorFields_.append("archimedesForce");  //first entry must the be the force
         particleCloud_.probeM().scalarFields_.append("Vp");
         particleCloud_.probeM().writeHeader(); 

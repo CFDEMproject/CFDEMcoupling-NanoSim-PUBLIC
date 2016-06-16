@@ -246,4 +246,12 @@ elif [ $WM_PROJECT_VERSION == "2.4.x" ]; then
     export CFDEM_WM_PROJECT_VERSION=24
 elif [[ $WM_PROJECT_VERSION == "3.2" && $WM_FORK == "extend" ]]; then
     export CFDEM_WM_PROJECT_VERSION=132
+else
+    clear
+    echo "************************************"
+    echo "ERROR from your CFDEM code!"
+    echo "ERROR: your openFOAM version is not supported!"
+    echo "Please use a version that is supported, i.e., see the bashrc file in the source directory!"
+    echo "************************************"
+    sleep 1.5
 fi
