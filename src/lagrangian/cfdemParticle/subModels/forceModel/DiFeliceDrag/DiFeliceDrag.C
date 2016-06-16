@@ -76,7 +76,7 @@ DiFeliceDrag::DiFeliceDrag
         probeIt_=!Switch(propsDict_.lookup("suppressProbe"));
     if(probeIt_)
     {
-        particleCloud_.probeM().initialize(typeName, "diFeliceDrag.logDat");
+        particleCloud_.probeM().initialize(typeName, typeName+".logDat");
         particleCloud_.probeM().vectorFields_.append("dragForce"); //first entry must the be the force
         particleCloud_.probeM().vectorFields_.append("Urel");        //other are debug
         particleCloud_.probeM().scalarFields_.append("Rep");          //other are debug

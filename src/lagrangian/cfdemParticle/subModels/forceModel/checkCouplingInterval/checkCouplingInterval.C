@@ -81,7 +81,7 @@ checkCouplingInterval::checkCouplingInterval
         probeIt_=!Switch(propsDict_.lookup("suppressProbe"));
     if(probeIt_)
     {
-        particleCloud_.probeM().initialize(typeName, "checkCouplingInterval.logDat");
+        particleCloud_.probeM().initialize(typeName, typeName+".logDat");
         particleCloud_.probeM().scalarFields_.append("minTauP");
         particleCloud_.probeM().scalarFields_.append("minVcellByVparcel");
         particleCloud_.probeM().scalarFields_.append("minStokes");

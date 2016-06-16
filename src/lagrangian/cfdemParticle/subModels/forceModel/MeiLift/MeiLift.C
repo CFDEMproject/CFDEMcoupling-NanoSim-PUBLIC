@@ -91,7 +91,7 @@ MeiLift::MeiLift
         scaleDia_=scalar(readScalar(propsDict_.lookup("scale")));
 
     //Append the field names to be probed
-    particleCloud_.probeM().initialize(typeName, "meiLift.logDat");
+    particleCloud_.probeM().initialize(typeName, typeName+".logDat");
     particleCloud_.probeM().vectorFields_.append("liftForce"); //first entry must the be the force
     particleCloud_.probeM().vectorFields_.append("Urel");        //other are debug
     particleCloud_.probeM().vectorFields_.append("vorticity");  //other are debug

@@ -80,7 +80,7 @@ GidaspowDrag::GidaspowDrag
         probeIt_=!Switch(propsDict_.lookup("suppressProbe"));
     if(probeIt_)
     {
-        particleCloud_.probeM().initialize(typeName, "gidaspowDrag.logDat");
+        particleCloud_.probeM().initialize(typeName, typeName+".logDat");
         particleCloud_.probeM().vectorFields_.append("dragForce"); //first entry must  be the force
         particleCloud_.probeM().vectorFields_.append("Urel");
         particleCloud_.probeM().scalarFields_.append("Rep");
