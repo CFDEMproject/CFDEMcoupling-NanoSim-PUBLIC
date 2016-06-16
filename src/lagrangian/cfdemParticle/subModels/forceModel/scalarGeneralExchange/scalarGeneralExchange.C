@@ -277,7 +277,8 @@ void scalarGeneralExchange::manipulateScalarField(volScalarField& explicitEulerS
                                      partHeatTransCoeffName_, partHeatTransCoeffPositionInRegister_,
                                      partHeatFluidName_,      partHeatFluidPositionInRegister_
                                    );
-        particleCloud_.probeM().setOutputFile(typeName+"_"+tempFieldName_+".logDat");
+        if(probeIt_)
+            particleCloud_.probeM().setOutputFile(typeName+"_"+tempFieldName_+".logDat");
     }
     else
     {
@@ -289,7 +290,8 @@ void scalarGeneralExchange::manipulateScalarField(volScalarField& explicitEulerS
                                      partSpeciesTransCoeffNames_[speciesID], partSpeciesTransCoeffPositionInRegister_[speciesID],
                                      partSpeciesFluidNames_[speciesID],      partSpeciesFluidPositionInRegister_[speciesID]
                                    );
-        particleCloud_.probeM().setOutputFile(typeName + "_" + fieldName + ".logDat");
+        if(probeIt_)
+            particleCloud_.probeM().setOutputFile(typeName + "_" + fieldName + ".logDat");
     }
 
 
