@@ -56,13 +56,19 @@ class engineSearchIB
 {
 
 protected:
-      dictionary propsDict_;
+    const label zSplit_;
 
-    	const label zSplit_;
+    const label xySplit_;
 
-    	const label xySplit_;
-    	
-    	bool checkPeriodicCells_;
+    scalar coef_;
+
+    mutable autoPtr<boundBox> bbPtr_;
+
+    bool verbose_;
+
+    const label numberOfSatellitePoints_;
+
+    std::vector<vector> satellitePoints_;
 
 public:
 
@@ -72,27 +78,41 @@ public:
 
     // Constructors
 
-        //- Construct from components
-        engineSearchIB
-        (
-            const dictionary& dict,
-            cfdemCloud& sm
-        );
+    //- Construct from components
+    engineSearchIB
+    (
+        const dictionary& dict,
+        cfdemCloud& sm
+    );
 
     // Destructor
 
-        ~engineSearchIB();
+    ~engineSearchIB();
 
 
     // Member Functions
-        label findCell
-        (
-            double** const& mask,
-            double**& positions,
-            double**& cellIDs,
-            int size
-        ) const;
+    label findCell
+    (
+        double** const& mask,
+        double**& positions,
+        double**& cellIDs,
+        int size
+    ) const;
 
+    vector generateSatellitePoint
+    (
+        int countPoints
+    ) const;
+    virtual vector getSatellitePoint
+    (
+        int index,
+        int countPoints
+    ) const;
+    bool isInsideRectangularDomain
+    (
+        vector point,
+        scalar skin
+    ) const;
 };
 
 

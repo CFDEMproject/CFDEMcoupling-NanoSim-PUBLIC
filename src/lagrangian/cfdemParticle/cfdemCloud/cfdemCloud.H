@@ -89,13 +89,17 @@ protected:
 
     IOdictionary liggghtsCommandDict_;
 
+    Switch allowAdjustTimeStep_;
+
     Switch solveFlow_;
 
     Switch solveScalarTransport_;
 
-    bool verbose_;
+    Switch verbose_;
 
     bool debug_;
+
+    bool allowCFDsubTimestep_;
 
     bool ignore_;
 
@@ -152,6 +156,8 @@ protected:
     mutable bool isLES_;
 
     mutable scalar cg_;
+    
+    mutable std::vector<double> cgTypeSpecific_;
 
     bool cgOK_;
 
@@ -166,6 +172,10 @@ protected:
     mutable word useDDTvoidfraction_;
 
     mutable volScalarField ddtVoidfraction_;
+
+    mutable Switch checkPeriodicCells_;
+
+    bool meshHasUpdated_;
 
     #if defined(version24Dev)
         const turbulenceModel& turbulence_;
@@ -213,6 +223,12 @@ protected:
 
     virtual void setNumberOfParticles(int);
 
+    virtual void setNumberOfClumps(int);
+
+    virtual void setPositionsCM(label,double*);
+
+    virtual void setCellIDsCM(label,int*);
+
     virtual void findCells();
 
     virtual void setForces();
@@ -252,6 +268,10 @@ public:
     
        bool debugMode(){ return debug_;};
 
+       bool allowCFDsubTimestep(){ return allowCFDsubTimestep_;};
+
+       void setAllowCFDsubTimestep(bool b){allowCFDsubTimestep_=b;};
+
        void checkCG(bool);
 
        void setPos(double **&);
@@ -277,8 +297,14 @@ public:
        label liggghtsCommandModelIndex(word);
 
        inline void setCG(double) const;
+       
+       inline void setCGTypeSpecific(int, double) const;
+
+       mutable bool cgTypeSpecificDifferent;
 
        inline const scalar& cg() const;
+       
+       inline const scalar& cg(int) const;
 
        inline const bool& impDEMdrag() const;
 
@@ -291,6 +317,8 @@ public:
        inline const bool& ignore() const;
 
        inline const fvMesh& mesh() const;
+
+       inline bool allowAdjustTimeStep() const;
 
        inline bool solveFlow() const;
 
@@ -345,7 +373,11 @@ public:
        virtual inline bool multipleTypesDMin() {return false;}
        virtual inline double ** particleDensity() const {return NULL;};
        virtual inline int ** particleTypes() const {return NULL;};
-       virtual label particleType(label index) const {return -1;};
+       virtual label particleType(label index) const 
+       {
+            FatalError << "cfdemCloud::particleType(index): you are attempting to get the particle type, but this array is not transferred to CFDEM for this cloud. Use a different cloud, or avoid asking for the particle type." << abort(FatalError);
+            return -1;
+       };
 
        //access to the particle's rotation and torque data
        virtual inline double ** DEMTorques() const {return NULL;};
@@ -365,7 +397,10 @@ public:
          FatalError << "cfdemCloud::shapeArray(): you are attempting to get an access to shape array for spheroids/superquadrics. This is not allowed for spheres. Recompile the code with #define anisotropicRotation in OFversion.H or enable superquadrics in LIGGGHTS (SUPERQUADRIC_ACTIVE_FLAG)" << abort(FatalError);
          return NULL;
        };
-       virtual vector shape(int) const {return Foam::vector(0,0,0);};
+       virtual vector shape(int) const {
+         FatalError << "cfdemCloud::shapeArray(): you are attempting to get an access to shape array for spheroids/superquadrics. This is not allowed for spheres. Recompile the code with #define anisotropicRotation in OFversion.H or enable superquadrics in LIGGGHTS (SUPERQUADRIC_ACTIVE_FLAG)" << abort(FatalError);
+         return Foam::vector(0,0,0);
+       };
 
        // access to complex shape information
        virtual inline double ** vectorArray() const {return NULL;};
@@ -460,6 +495,14 @@ public:
            inline const incompressible::RASModel& turbulence() const;
        #endif
 
+        inline void makeSpecific(volScalarField&);
+
+        inline void makeSpecific(volVectorField&);
+
+        inline void scaleWithVcell(volScalarField&);
+
+        inline void scaleWithVcell(volVectorField&);
+
     // Write
 
       // write cfdemCloud internal data
@@ -511,6 +554,9 @@ public:
         void zeroizeParticleDatFieldsUserCFDEMToExt();
         void accessParticleDatFieldsUserCFDEMToExt(word fieldToAccess, double **& fieldData);
         //=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=
+        bool checkPeriodicCells() { return checkPeriodicCells_; }
+        bool meshHasUpdated() { return meshHasUpdated_; }
+        void setMeshHasUpdatedFlag(bool hasUpdated) { meshHasUpdated_ = hasUpdated; }
 
 };
 

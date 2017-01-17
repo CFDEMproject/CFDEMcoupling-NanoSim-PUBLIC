@@ -64,7 +64,7 @@ particleCellVolume::particleCellVolume
     forceModel(dict,sm),
     propsDict_(dict.subDict(typeName + "Props")),
     mesh_(particleCloud_.mesh()),
-    startTime_(0.),
+    startTime_(propsDict_.lookupOrDefault<scalar>("startTime",0.)),
     scalarFieldName_("voidfraction"),
     scalarField_
     (   
@@ -96,16 +96,8 @@ particleCellVolume::particleCellVolume
     lowerThreshold_(readScalar(propsDict_.lookup("lowerThreshold"))),
     path_("postProcessing/particleCellVolume"),
     sPtr_(NULL),
-    writeToFile_(false)
+    writeToFile_(propsDict_.lookupOrDefault<Switch>("writeToFile",false))
 {
-    if (propsDict_.found("startTime")){
-        startTime_=readScalar(propsDict_.lookup("startTime"));
-    }
-
-    if (propsDict_.found("writeToFile")){
-        writeToFile_=Switch(propsDict_.lookup("writeToFile"));
-    }
-
     // init force sub model
     setForceSubModels(propsDict_);
 
@@ -141,7 +133,7 @@ void particleCellVolume::setForce() const
     {
         if(forceSubM(0).verbose()) Info << "particleCellVolume.C - setForce()" << endl;
 
-        scalarField_.internalField()=0.;
+        scalarField_ == dimensionedScalar("zero", scalarField_.dimensions(), 0.);
 
         // get reference to actual field
         const volScalarField& field = mesh_.lookupObject<volScalarField>(scalarFieldName_);
@@ -168,8 +160,8 @@ void particleCellVolume::setForce() const
                 scalarField2_[cellI] = 0.;
             }
         }
-        scalarField_.internalField() = gSum(scalarField_);
-        scalarField2_.internalField() = gSum(scalarField2_);
+        scalarField_ == dimensionedScalar("zero", scalarField_.dimensions(), gSum(scalarField_));
+        scalarField2_ == dimensionedScalar("zero", scalarField_.dimensions(), gSum(scalarField2_));
         reduce(minFieldVal, minOp<scalar>());
         reduce(maxFieldVal, maxOp<scalar>());
 

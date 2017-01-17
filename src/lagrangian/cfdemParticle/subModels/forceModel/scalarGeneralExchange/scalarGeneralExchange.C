@@ -131,6 +131,7 @@ scalarGeneralExchange::scalarGeneralExchange
     for (int iFSub=0;iFSub<nrForceSubModels();iFSub++)
         forceSubM(iFSub).constructorCalls(typeName);
 
+    particleCloud_.setAllowCFDsubTimestep(false);
 }
 
 // ***********************************************************
@@ -198,7 +199,7 @@ scalarGeneralExchange::scalarGeneralExchange
     {
       forAll(eulerianFieldNames_, fieldIt)
       {
-        particleCloud_.probeM().initialize(typeName, typeName + "_" + eulerianFieldNames_[fieldIt] + ".logDat");
+        particleCloud_.probeM().initialize(dictName, dictName + "_" + eulerianFieldNames_[fieldIt] + ".logDat");
         particleCloud_.probeM().vectorFields_.append("Urel");               //first entry must the be the vector to probe
         if(eulerianFieldNames_[fieldIt]==tempFieldName_) //this is the temperature
         {
@@ -255,9 +256,9 @@ void scalarGeneralExchange::manipulateScalarField(volScalarField& explicitEulerS
                                                   int speciesID) const
 {
 
-    // reset Scalar field
-    explicitEulerSource.internalField() = 0.0;
-    implicitEulerSource.internalField() = 0.0;
+    // reset Scalar field (== means hard reset)
+    explicitEulerSource == dimensionedScalar("zero", explicitEulerSource.dimensions(), 0.);
+    implicitEulerSource == dimensionedScalar("zero", implicitEulerSource.dimensions(), 0.);
 
     if(speciesID>=0 && particleSpeciesValue_[speciesID]<0.0)    //skip if species is not active
         return;
@@ -328,13 +329,13 @@ void scalarGeneralExchange::manipulateScalarField(volScalarField& explicitEulerS
     vector Us(0,0,0);
     vector Ur(0,0,0);
     scalar dscaled(0);
+    scalar dparcel(0);
+    scalar numberParticlesInParcel(1);
     scalar nuf(0);
     scalar magUr(0);
     scalar As(0);
     scalar Rep(0);
     scalar Pr(0);
-
-    scalar sDth(scaleDia_*scaleDia_*scaleDia_);
 
     #include "resetVoidfractionInterpolator.H"
     #include "resetUInterpolator.H"
@@ -357,13 +358,22 @@ void scalarGeneralExchange::manipulateScalarField(volScalarField& explicitEulerS
                     Ufluid       = U_[cellI];
                     fluidValue   = fluidScalarField_[cellI];
                 }
+                if(forceSubM(0).useCorrectedVoidage())
+                {
+                    for (int iFSub=0;iFSub<nrForceSubModels();iFSub++)
+                         voidfraction = forceSubM(iFSub).calculateCorrectedVoidage(voidfraction); 
+                }
 
                 // calc relative velocity
                 Us      = particleCloud_.velocity(index);
                 Ur      = Ufluid-Us;
                 magUr   = mag(Ur);
-                dscaled = 2*particleCloud_.radius(index)/scaleDia_;
-                As      = dscaled*dscaled*M_PI*sDth;
+                dscaled = 2*particleCloud_.radius(index);
+                dparcel = dscaled;
+                forceSubM(0).scaleDia(dscaled,index); //caution: this fct will scale ds!
+                numberParticlesInParcel    = dparcel/dscaled;
+                numberParticlesInParcel   *= numberParticlesInParcel*numberParticlesInParcel;
+                As      = dscaled*dscaled*M_PI*numberParticlesInParcel;
                 nuf     = nufField[cellI];
                 Rep     = dscaled*magUr*voidfraction/nuf; //MUST use superficial velocity here!
                 if(speciesID<0) //have temperature
@@ -371,7 +381,7 @@ void scalarGeneralExchange::manipulateScalarField(volScalarField& explicitEulerS
                 else
                     Pr      = max(SMALL,nuf/transportParameter); //This is Sc for species
 
-                scalar alpha = transportParameter*(this->*Nusselt)(Rep,Pr,voidfraction)/(dscaled);
+                scalar alpha = transportParameter*(this->*Nusselt)(Rep,Pr,voidfraction)/dscaled;
 
                 // calc convective heat flux [W]
                 scalar areaTimesTransferCoefficient = alpha * As;
@@ -453,9 +463,11 @@ void scalarGeneralExchange::manipulateScalarField(volScalarField& explicitEulerS
         NULL
     );
 
-    // scale with the cell volume to get (total) volume-specific source 
-    explicitEulerSource.internalField() /= -explicitEulerSource.mesh().V();
-    implicitEulerSource.internalField() /= -implicitEulerSource.mesh().V();
+    // scale with the cell volume to get (total) volume-specific source
+    particleCloud_.makeSpecific(explicitEulerSource);
+    explicitEulerSource*=-1;
+    particleCloud_.makeSpecific(implicitEulerSource);
+    implicitEulerSource*=-1;
 
     // limit explicit source term
     scalar explicitEulerSourceInCell;
@@ -473,6 +485,7 @@ void scalarGeneralExchange::manipulateScalarField(volScalarField& explicitEulerS
     //Reporting of integral quantities
     //TODO: write to different file for speciesId>0
     Field<scalar> writeValues; bool writeDiskNow=forceSubM(0).verboseToDisk(); //must call 'verboseToDisk()' only once since this function is incremeting a counter!
+    writeValues.clear();
     if( forceSubM(0).verbose() || writeDiskNow)
     {
 	    scalar exchangeRate = gSum(-(explicitEulerSource
@@ -646,6 +659,10 @@ void scalarGeneralExchange::setupModel() const
         Info << "Found a valid partHeatTransCoeffName and partHeatFluidfName (& corresponding species names)." << endl;
         Info << "scalarGeneralExchange (or derived model) will now proceed with IMPLICIT flux coupling " << endl;
     }
+    else if(validPartFlux_ )    {
+        Info << "Found a valid partHeatFluxName: " << partHeatFluxName_ << endl;
+        Info << "scalarGeneralExchange (or derived model) will now proceed with EXPLICIT flux coupling for heat. " << endl;
+    }
     else
         FatalError <<  "scalarGeneralExchange::setupModel: you did not specify a valid flux or transCoeff name set. Please either specify valid flux names, or valid transCoeff and fluid names." << abort(FatalError);
 
@@ -691,6 +708,7 @@ void scalarGeneralExchange::setupModel() const
     forceSubM(0).setSwitchesList(4,true); // activate search for interpolate switch
     forceSubM(0).setSwitchesList(8,true); // activate scalarViscosity switch
     forceSubM(0).setSwitchesList(9,true); // activate verboseToDisk switch
+    forceSubM(0).setSwitchesList(10,true); // activate correctedVoidage switch
 
     // read those switches defined above, if provided in dict
     for (int iFSub=0;iFSub<nrForceSubModels();iFSub++)
@@ -755,6 +773,15 @@ void scalarGeneralExchange::setPointersToExternalArrays(    word nameFlux,      
                                                             word nameFluid,         int positionFluid
                                                        ) const
 {
+    if(particleCloud_.particleDatFieldsUserCFDEMToExt.size() !=
+               particleCloud_.namesFieldsUserCFDEMToExt.size()
+      )
+      FatalError <<  "\n\n****CATASTROPHIC ERROR MOST LIKELY CAUSED BY USER!!! \n" 
+                 <<  "particleCloud_.particleDatFieldsUserCFDEMToExt.size() is NOT EQUAL to particleCloud_.namesFieldsUserCFDEMToExt.size()." 
+                 <<  "This may be caused by an incorrect time step, or coupling interval, resulting in the fact that an array inside particleCloud_ was not allocated. "
+                 <<  "Please check your time step and coupling interval settings, such that fluid-particle coupling is done EVERY fluid time step. \n\n" 
+                 << abort(FatalError);
+	
     if(validPartFlux_)  //EXPLICIT coupling strategy for Lagrangian part
     {
             partDatFlux_           = particleCloud_.particleDatFieldsUserCFDEMToExt[positionFlux];

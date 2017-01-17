@@ -80,7 +80,7 @@ compileLib()
                 echo "Please make sure to have the incompressible libraries first in the library-list.txt!"
                 cd $CFDEM_SRC_DIR/lagrangian/cfdemParticle
                 echo "changing to $PWD"
-                if [[ $WM_PROJECT_VERSION == "dev" || $WM_PROJECT_VERSION == "3.0.x" ]]; then
+                if [[ $WM_PROJECT_VERSION == dev || $WM_PROJECT_VERSION == 3.0.* || $WM_PROJECT_VERSION == 4.* ]]; then
                     wrmdep 2>&1 | tee -a $logpath/$logfileName
                 else
                     rmdepall 2>&1 | tee -a $logpath/$logfileName
@@ -90,12 +90,13 @@ compileLib()
             else
                 echo "Compiling a incompressible library."
         fi
-        if [[ $WM_PROJECT_VERSION == "dev" || $WM_PROJECT_VERSION == "3.0.x" ]]; then
+        if [[ $WM_PROJECT_VERSION == dev || $WM_PROJECT_VERSION == 3.0.* || $WM_PROJECT_VERSION == 4.* ]]; then
             wrmdep 2>&1 | tee -a $logpath/$logfileName
         else
             rmdepall 2>&1 | tee -a $logpath/$logfileName
         fi
         wclean 2>&1 | tee -a $logpath/$logfileName
+        rm -r $casePath/Make/cfdemParticle
     #fi
     wmake libso 2>&1 | tee -a $logpath/$logfileName
 
@@ -142,7 +143,7 @@ compileSolver()
     else
         #- wclean and wmake
         #if [ $doClean != "noClean" ]; then
-            if [[ $WM_PROJECT_VERSION == "dev" || $WM_PROJECT_VERSION == "3.0.x" ]]; then
+            if [[ $WM_PROJECT_VERSION == dev || $WM_PROJECT_VERSION == 3.0.* || $WM_PROJECT_VERSION == 4.* ]]; then
                 wrmdep 2>&1 | tee -a $logpath/$logfileName
             else
                 rmdepall 2>&1 | tee -a $logpath/$logfileName
@@ -153,9 +154,14 @@ compileSolver()
     
     # compile parallel?
     if [[ $parallel == "true" ]]; then
+        touch $logpath/$logfileName.tempXYZ
         wmake 2>&1 | tee -a $logpath/$logfileName #&
+        rm $logpath/$logfileName.tempXYZ
     else
+        touch $logpath/$logfileName.tempXYZ
         wmake 2>&1 | tee -a $logpath/$logfileName
+        rm $logpath/$logfileName.tempXYZ
+
     fi
 
     #- keep terminal open
@@ -237,11 +243,11 @@ compileLMPlib()
     fi
 
     #Just check if library is there and and abort if not
-    if [ $compilationModeSwitch == "false" ]; then
+    if [[ $compilationModeSwitch == "false" ]]; then
           if [ -d "$libraryPath" ]; then
                     echo "lib path $libraryPath EXISTS!"
-                    cd $libraryPath
-                    if [ -e *.a ]; then
+                    libraries=$(ls ${libraryPath}/*.a 2> /dev/null | wc -l)
+                    if [[ $libraries != "0" ]]; then
                         echo "... and contains the following libraries: "
                         ls $libraryPath/*.a
                         echo "Congratulations! Check passed! "
@@ -257,7 +263,7 @@ compileLMPlib()
                     fi
           fi
     else
-        if [ $compilationModeSwitch == "noClean" ]; then
+        if [[ $compilationModeSwitch == "noClean" ]]; then
             echo "compileLMPlib will skip the cleaning step!"
             echo ""
         else
@@ -279,7 +285,7 @@ compileLMPlib()
             bash Install.sh 0 2>&1 | tee -a $logpath/$logfileName
             bash Install.sh 1 2>&1 | tee -a $logpath/$logfileName
         else
-            if [ $compilationModeSwitch == "noClean" ]; then
+            if [[ $compilationModeSwitch == "noClean" ]]; then
                 echo "compileLMPlib will skip the cleaning step!"
                 echo ""
             else
@@ -344,7 +350,7 @@ cleanCFDEM()
 
             cd  $path
             echo "cleaning library $PWD"
-            if [[ $WM_PROJECT_VERSION == "dev" || $WM_PROJECT_VERSION == "3.0.x" ]]; then
+            if [[ $WM_PROJECT_VERSION == dev || $WM_PROJECT_VERSION == 3.0.* || $WM_PROJECT_VERSION == 4.* ]]; then
                 wrmdep
             else
                 rmdepall
@@ -402,7 +408,7 @@ cleanCFDEM()
 
             cd  $path            
             echo "cleaning solver $PWD"
-            if [[ $WM_PROJECT_VERSION == "dev" || $WM_PROJECT_VERSION == "3.0.x" ]]; then
+            if [[ $WM_PROJECT_VERSION == dev || $WM_PROJECT_VERSION == 3.0.* || $WM_PROJECT_VERSION == 4.* ]]; then
                 wrmdep
             else
                 rmdepall
@@ -424,14 +430,63 @@ cleanCFDEMcase()
     #--------------------------------------------------------------------------------#
     #- define variables
     casepath="$1"
+    keepDEMrestart="$2"
     #--------------------------------------------------------------------------------#
 
-    echo "deleting data at: $casePath :\n"
+    echo "deleting data at: $casePath ? otherwise press Ctrl-C:\n"
+    read
     source $WM_PROJECT_DIR/bin/tools/CleanFunctions
+    #CFD
     cd $casePath/CFD
     cleanCase
-    rm -r $casePath/DEM/post/*
-    echo "dummyfile" >> $casePath/DEM/post/dummy
+    #CFDEM
+    rm -r $casePath/CFD/clockData
+    rm -r $casePath/CFD/particleProbes
+    rm -r $casePath/CFD/averageProps/
+    rm -r $casePath/CFD/octave/octave-core
+    rm -r $casePath/CFD/octave/octave-workspace
+    rm -r $casePath/remotePlace
+    rm -r $casePath/CFD/oldProcDirs
+    rm -r $casePath/CFD/tmp.balance
+    rm $casePath/CFD/callgrind.out.*
+    rm -r $casePath/CFD/hpctoolkit-*
+    rm  $casePath/log_*
+    #DEM
+    rm $casePath/DEM/post/*
+    touch $casePath/DEM/post/.gitignore
+    if [[ $keepDEMrestart == true ]]; then
+        echo "keeping DEM restart files"
+    else
+    rm  $casePath/DEM/post/restart/*
+    fi
+    touch $casePath/DEM/post/restart/.gitignore
+    rm  $casePath/DEM/tmp.lammps.variable
+    rm  $casePath/DEM/log*
+    #ParScale
+    rm $casePath/CFD/*.dat
+    rm $casePath/CFD/*.pascal
+    rm $casePath/CFD/*.profile
+    rm -r $casePath/CFD/pascal/0.*
+    rm -r $casePath/CFD/pascal/1
+    rm -r $casePath/CFD/pascal/1.*
+    rm -r $casePath/CFD/pascal/2
+    rm -r $casePath/CFD/pascal/2.*
+    rm -r $casePath/CFD/pascal/3
+    rm -r $casePath/CFD/pascal/3.*
+    rm -r $casePath/CFD/pascal/4
+    rm -r $casePath/CFD/pascal/4.*
+    rm -r $casePath/CFD/pascal/5
+    rm -r $casePath/CFD/pascal/5.*
+    rm -r $casePath/CFD/pascal/6
+    rm -r $casePath/CFD/pascal/6.*
+    rm -r $casePath/CFD/pascal/7
+    rm -r $casePath/CFD/pascal/7.*
+    rm -r $casePath/CFD/pascal/8
+    rm -r $casePath/CFD/pascal/8.*
+    rm -r $casePath/CFD/pascal/9
+    rm -r $casePath/CFD/pascal/9.*
+    rm -r $casePath/CFD/pascal/10
+    rm -r $casePath/CFD/pascal/10.*
     cd $casePath
     echo "done"
 }
@@ -451,12 +506,12 @@ DEMrun()
     debugMode="$6"
     #--------------------------------------------------------------------------------#
 
-    if [ $debugMode == "on" ]; then
+    if [[ $debugMode == "on" ]]; then
         debugMode="valgrind"
-    elif [ $debugMode == "strict" ]; then
+    elif [[ $debugMode == "strict" ]]; then
         #debugMode="valgrind --leak-check=full -v --trace-children=yes --track-origins=yes" 
         debugMode="valgrind --tool=memcheck --track-origins=yes --leak-check=yes --show-reachable=yes --num-callers=20 --track-fds=yes"  
-    elif [ $debugMode == "strictXML" ]; then
+    elif [[ $debugMode == "strictXML" ]]; then
         #debugMode="valgrind --leak-check=full -v --trace-children=yes --track-origins=yes" 
         debugMode="valgrind --tool=memcheck --leak-check=yes --leak-check-heuristics=stdstring,length64,newarray,multipleinheritance --show-reachable=no --num-callers=20 --track-fds=yes --xml=yes --xml-file=valgrind.xml"  
     else
@@ -503,12 +558,12 @@ parDEMrun()
     debugMode="$8"
     #--------------------------------------------------------------------------------#
 
-    if [ $debugMode == "on" ]; then
+    if [[ $debugMode == "on" ]]; then
         debugMode="valgrind"
-    elif [ $debugMode == "strict" ]; then
+    elif [[ $debugMode == "strict" ]]; then
         #debugMode="valgrind --leak-check=full -v --trace-children=yes --track-origins=yes" 
         debugMode="valgrind --tool=memcheck --track-origins=yes --leak-check=yes --show-reachable=yes --num-callers=20 --track-fds=yes"  
-    elif [ $debugMode == "strictXML" ]; then
+    elif [[ $debugMode == "strictXML" ]]; then
         #debugMode="valgrind --leak-check=full -v --trace-children=yes --track-origins=yes" 
         debugMode="valgrind --tool=memcheck --leak-check=yes --leak-check-heuristics=stdstring,length64,newarray,multipleinheritance --show-reachable=no --num-callers=20 --track-fds=yes --xml=yes --xml-file=valgrind.xml"  
     else
@@ -531,7 +586,7 @@ parDEMrun()
     echo 2>&1 | tee -a $logpath/$logfileName
 
     #- run applictaion
-    if [ $machineFileName == "none" ]; then
+    if [[ $machineFileName == "none" ]]; then
         mpirun -np $nrProcs $debugMode $CFDEM_LIGGGHTS_SRC_DIR/$CFDEM_LIGGGHTS_LIB_NAME < $solverName 2>&1 | tee -a $logpath/$logfileName
     else
         mpirun -machinefile $machineFileName -np $nrProcs $debugMode $CFDEM_LIGGGHTS_SRC_DIR/$CFDEM_LIGGGHTS_LIB_NAME < $solverName 2>&1 | tee -a $logpath/$logfileName
@@ -557,7 +612,7 @@ CFDrun()
     debugMode="$6"
     #--------------------------------------------------------------------------------#
 
-    if [ $debugMode == "on" ]; then
+    if [[ $debugMode == "on" ]]; then
         debugMode="valgrind"
     else
         debugMode=""
@@ -605,7 +660,7 @@ parCFDrun()
     debugMode="$8"
     #--------------------------------------------------------------------------------#
 
-    if [ $debugMode == "on" ]; then
+    if [[ $debugMode == "on" ]]; then
         debugMode="valgrind"
     else
         debugMode=""
@@ -641,7 +696,7 @@ parCFDrun()
     echo 2>&1 | tee -a $logpath/$logfileName
 
     #- run applictaion
-    if [ $machineFileName == "none" ]; then
+    if [[ $machineFileName == "none" ]]; then
         mpirun -np $nrProcs $debugMode $solverName -parallel 2>&1 | tee -a $logpath/$logfileName
     else
         mpirun -machinefile $machineFileName -np $nrProcs $debugMode $solverName -parallel 2>&1 | tee -a $logpath/$logfileName
@@ -669,20 +724,39 @@ parCFDDEMrun()
     debugMode="$8"
     reconstuctCase="$9"
     decomposeCase=${10}
+    remoteStorageLocation=${11}
     #--------------------------------------------------------------------------------#
 
-    if [ $debugMode == "on" ]; then
+    if [[ $debugMode == "on" ]]; then
         debugMode="valgrind"
-    elif [ $debugMode == "strict" ]; then
+    elif [[ $debugMode == "strict" ]]; then
         #debugMode="valgrind --leak-check=full -v --trace-children=yes --track-origins=yes" 
         debugMode="valgrind --tool=memcheck --track-origins=yes --leak-check=yes --show-reachable=yes --num-callers=20 --track-fds=yes"
-    elif [ $debugMode == "strictXML" ]; then
+    elif [[ $debugMode == "strictXML" ]]; then
         #debugMode="valgrind --leak-check=full -v --trace-children=yes --track-origins=yes" 
         debugMode="valgrind --tool=memcheck --leak-check=yes --leak-check-heuristics=stdstring,length64,newarray,multipleinheritance --show-reachable=no --num-callers=20 --track-fds=yes --xml=yes --xml-file=valgrind.xml"  
-    elif [ $debugMode == "profile" ]; then
-        # make sure you did hpcstruct before
-        debugMode="hpcrun"
-        rm -r $casePath/CFD/hpctoolkit-$solverName-measurements
+    elif [[ $debugMode == "profile" ]]; then
+        if [[ $WM_COMPILE_OPTION == "Debug" ]]; then
+            # make sure you did hpcstruct before
+            debugMode="hpcrun"
+            rm -r $casePath/CFD/hpctoolkit-$solverName-measurements
+        else
+            echo ""
+            echo "WARNING - you do not use proper Debug flags! (for hpcrun you need Debug)"
+            echo "using debugMode off now."
+            debugMode=""
+            read
+        fi
+    elif [[ $debugMode == "callgrind" ]]; then
+        if [[ $WM_COMPILE_OPTION == "Debug" ]]; then
+            debugMode="valgrind --tool=callgrind"
+        else
+            echo ""
+            echo "WARNING - you do not use proper Debug flags! Only when using debug, cachegrind will be able to look through you code."
+            debugMode="valgrind --tool=callgrind"
+            read
+        fi
+
     else
         debugMode=""
     fi
@@ -698,10 +772,14 @@ parCFDDEMrun()
         echo "Not decomposing case."
     else
         echo "Decomposing case."
-        #- remove old data
-        rm -rf processor*
+        decomposePar -force
 
-        decomposePar
+        if [[ $remoteStorageLocation == "" ]]; then
+            echo "do nothing."
+        else
+            echo "do links"
+            linkProcDirs $remoteStorageLocation
+        fi
     fi
 
     #- make proc dirs visible
@@ -744,9 +822,13 @@ parCFDDEMrun()
     fi
 
     if [[ $debugMode == "hpcrun" ]]; then
-        rm hpctoolkit-$solverName-database*
-        hpcprof -S $CFDEM_APP_DIR/$solverName.hpcstruct -I ./'*' hpctoolkit-$solverName-measurements
-        echo "huhu"      
+        if [ -f $CFDEM_APP_DIR/$solverName.hpcstruct ]; then
+            rm -r hpctoolkit-$solverName-database*
+            hpcprof -S $CFDEM_APP_DIR/$solverName.hpcstruct -I ./'*' hpctoolkit-$solverName-measurements
+        else
+            echo "you need to run hpcstruct first for your app!"
+            read
+        fi   
     fi
 
     #- keep terminal open (if started in new terminal)
@@ -871,7 +953,7 @@ pseudoParallelRun()
     outputfile="log.$appname"
     #--------------------------------------------------------------------------------#
 
-if [ -z "$njobs" ]; then 
+if [[ -z "$njobs" ]]; then 
    echo ""
    echo "  K. Wardle 6/22/09"
    echo "  bash script to run reconstructPar (or other fct) in pseudo-parallel mode"
@@ -895,7 +977,7 @@ echo "do $appname on $nsteps time directories"
 #echo "nsteps= $nsteps"
 #let nsteps=$nsteps1-1
 
-nchunk=`echo $nsteps/$njobs+1 | bc`
+let nchunk=$nsteps/$njobs+1
 #echo "nchunk = $nchunk"
 
 #find max time
@@ -913,9 +995,9 @@ p=p
 
 for i in `seq $njobs`
 do
-  nn=`echo $i*$nchunk | bc`
+  let nn=$i*$nchunk
   tstop=`ls processor0 | sed -n $nn$p`
-  if [ $i == $njobs ] 
+  if [[ $i == $njobs ]] 
 	then
 	tstop=$tmax
   fi
@@ -934,10 +1016,10 @@ until [ `ps -C $appname | wc -l` -eq 1 ];
   do 
     sleep 10
 ##    n1=`ps -C $appname | wc -l`
-##    n2=`echo $n1-1 | bc`
+##    let n2=$n1-1
     nnow=`ls -d [0-9]*/ | wc -l` ##count time directories in case root dir, this will include 0
-    nmore=`echo $nsteps-$nnow+1 | bc` ##calculate number left to reconstruct and subtract 0 dir
-    if [ $nmore != $nmore_old ]
+    let nmore=$nsteps-$nnow+1 ##calculate number left to reconstruct and subtract 0 dir
+    if [[ $nmore != $nmore_old ]]
       then
       echo "$nmore directories remaining..."
     fi
@@ -945,7 +1027,7 @@ until [ `ps -C $appname | wc -l` -eq 1 ];
   done
 
 #combine and cleanup
-if [ -n "$outputfile" ] 
+if [[ -n "$outputfile" ]] 
   then
 #check if output file already exists
   if [ -e "$outputfile" ] 
@@ -1108,7 +1190,7 @@ trackMem()
     do
         CMD=$(/bin/ps -o comm -p $PID | /usr/bin/tail -1)
 
-        if [ $CMD == $appname ]
+        if [[ $CMD == $appname ]]
             then
 
             TOTAL=$(/usr/bin/pmap $PID 2>/dev/null | /usr/bin/tail -1 | /usr/bin/awk '{ print $2 }')
@@ -1124,11 +1206,81 @@ removeBracketsFromFile()
     #--------------------------------------------------------------------------------#
     #- define variables
     oldFileName="$1"
-    newFileName="$oldFileName""_noBrackets"
+    overwrite="$2"
     #--------------------------------------------------------------------------------#
 
-    sed -e 's/[(,)]//g' $oldFileName > $newFileName
+    if [[ $overwrite == "true" ]]
+    then
+        sed -i 's/[(,)]//g' $oldFileName
+    else
+        newFileName="$oldFileName""_noBrackets"
+        sed -e 's/[(,)]//g' $oldFileName > $newFileName
+    fi
 }
 
+#========================================#
+#- remove brackets from file
+linkProcDirs()
+{
+    #--------------------------------------------------------------------------------#
+    #- define variables
+    remoteDir="$1"
+    #--------------------------------------------------------------------------------#
 
+    # check remote directory exist
+    if [[ -d "$remoteDir" ]]
+    then
+        echo "  $remoteDir exists - **check**"
+    else
+        Fatal "ERROR: remote directory does not exist: $remoteDir"
+    fi
 
+    # check case is decomposed
+    if [[ -d "processor0" ]]
+    then
+        echo "  case is decomposed - **check**"
+    else
+        Fatal "ERROR: case is NOT decomposed - please do so and run again."
+    fi
+
+    # check CFD dir exists at remote location
+    if [[ -d $remoteDir/CFD ]]
+    then
+        Fatal "ERROR: there is (!) a dir called CFD at $remoteDir - please rename it and run again."
+    else
+        echo "  there is no dir called CFD at $remoteDir - **check**"
+    fi
+
+    # create a dir CFD at remoteDir
+    mkdir $remoteDir/CFD
+
+    # create a backup dir oldProcDirs
+    mkdir oldProcDirs
+
+    # check if oldProcDirs is empty
+    if [[ -d oldProcDirs/processor0 ]]
+    then
+        Fatal "ERROR: ./oldProcDirs is not empty - please clean up and run again."
+    else
+        echo "  ./oldProcDirs is empty - **check**"
+    fi
+
+    # moving proc dirs to oldProcsDir (backup)
+    cp -r processor* $remoteDir/CFD
+    mv processor* oldProcDirs
+
+    # create a link to remote proc dirs
+    counter=0
+    for procDir in $remoteDir/CFD/*/; do
+        ln -s $remoteDir/CFD/processor$counter processor$counter
+        counter=$[counter + 1]
+    done
+
+    # create a link to postProcessing dir
+    mkdir postProcessing
+    mv postProcessing $remoteDir/CFD
+    ln -s $remoteDir/CFD/postProcessing postProcessing
+
+    # success
+    echo "linking was successful"
+}

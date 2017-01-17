@@ -59,7 +59,7 @@ forceSubModel::forceSubModel
     dict_(dict),
     particleCloud_(sm),
     forceModel_(fm),
-    nrDefaultSwitches_(10),                                          // !!!
+    nrDefaultSwitches_(11),                                          // !!!
     switchesNameList_(wordList(nrDefaultSwitches_)),
     switchesList_(List<Switch>(nrDefaultSwitches_)),
     switches_(List<Switch>(nrDefaultSwitches_)),
@@ -118,7 +118,9 @@ forceSubModel::forceSubModel
     densityFieldName_(dict_.lookupOrDefault<word>("densityFieldName","rho")),
     rho_(sm.mesh().lookupObject<volScalarField> (densityFieldName_)),
     verboseDiskIntervall_(1),
-    verboseDiskCounter_(0)
+    verboseDiskCounter_(0),
+    scaleDia_(dict_.lookupOrDefault<scalar>("scale",1.)),
+    scaleDrag_(dict_.lookupOrDefault<scalar>("scaleDrag",1.))
 {
     // init standard switch list
     int iCounter(0);
@@ -132,6 +134,7 @@ forceSubModel::forceSubModel
 	switchesNameList_[iCounter]="implForceDEMaccumulated";iCounter++;             //7
 	switchesNameList_[iCounter]="scalarViscosity";iCounter++;                     //8
 	switchesNameList_[iCounter]="verboseToDisk";iCounter++;                       //9
+    switchesNameList_[iCounter]="useCorrectedVoidage";iCounter++;                 //10
 
     // should be done by default
     //for(int i=0;i<switchesList_.size();i++)
@@ -143,6 +146,19 @@ forceSubModel::forceSubModel
     // sanity check of what is defined above
     if(switchesNameList_.size() != nrDefaultSwitches_)
         FatalError<< "please check the nr of switches defined in forceSubModel class." << abort(FatalError);
+
+    // info about scaleDia being used
+    if (scaleDia_ != 1)
+        Info << "using scale = " << scaleDia_ << endl;
+    else if (particleCloud_.cg() != 1)
+    {
+        scaleDia_=particleCloud_.cg();
+        Info << "using scale from liggghts cg = " << scaleDia_ << endl;
+    }
+
+    // info about scaleDrag being used
+    if (scaleDrag_ != 1.)
+        Info << "using scaleDrag = " << scaleDrag_ << endl;
 }
 
 
@@ -282,29 +298,64 @@ void forceSubModel::explicitCorrScalar(scalar& sourceKImplicit,
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-void forceSubModel::update(            scalar&  deltaT, 
-                                       label    particleI, 
-                                       label    cellI, 
-                                       scalar&  scalToUpdate1, 
-                                       scalar&  scalToUpdate2, 
-                                       bool     verbose
+void forceSubModel::update( label    particleI, 
+                            label    cellI,
+                            scalar&  d,
+                            scalar&  scalToUpdate1, 
+                            scalar&  scalToUpdate2, 
+                            bool     verbose
                           ) const
 {
     //no action
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-void forceSubModel::update(            scalar&  deltaT, 
-                                       label    particleI, 
-                                       label    cellI, 
-                                       vector&  vecToUpdate1, 
-                                       vector&  vecToUpdate2, 
-                                       scalar&  scalToUpdate1, 
-                                       scalar&  scalToUpdate2, 
-                                       bool     verbose
+void forceSubModel::update( label    particleI,
+                            label    cellI,
+                            scalar&  d,
+                            vector&  vecToUpdate1,
+                            vector&  vecToUpdate2,
+                            scalar&  scalToUpdate1,
+                            scalar&  scalToUpdate2,
+                            bool     verbose
                           ) const
 {
     //no action
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+void forceSubModel::scaleDia(scalar& d, int index) const
+{
+    if(particleCloud_.cgTypeSpecificDifferent)
+        d /= particleCloud_.cg(particleCloud_.particleType(index));
+    else
+        d /= scaleDia_;
+}
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+void forceSubModel::scaleForce(vector& force, scalar& d, int index) const
+{
+    if(particleCloud_.cgTypeSpecificDifferent)
+    {
+        double cgCurr = particleCloud_.cg(particleCloud_.particleType(index));
+        force *= cgCurr*cgCurr*cgCurr;
+    }
+    else
+        force *= scaleDia_*scaleDia_*scaleDia_;
+           
+    force *= scaleDrag_;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+void forceSubModel::scaleCoeff(scalar& coeff, scalar& d, int index) const
+{
+    if(particleCloud_.cgTypeSpecificDifferent)
+    {
+        double cgCurr = particleCloud_.cg(particleCloud_.particleType(index));
+        coeff *= cgCurr*cgCurr*cgCurr;
+    }
+    else
+        coeff *= scaleDia_*scaleDia_*scaleDia_;
+        
+    coeff *= scaleDrag_;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 void forceSubModel::explicitLimit

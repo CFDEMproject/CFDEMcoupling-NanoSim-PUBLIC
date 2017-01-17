@@ -45,6 +45,7 @@ SourceFiles
 
 namespace Foam
 {
+const int numberOfMarkerPoints = 29;
 
 /*---------------------------------------------------------------------------*\
                            Class noDrag Declaration
@@ -60,6 +61,8 @@ private:
 
         bool verbose_;
 
+        Switch procBoundaryCorrection_;
+
         const scalar alphaMin_;          // min value of voidFraction
 
 	    mutable bool alphaLimited_;
@@ -74,6 +77,8 @@ private:
         {
             return 4.188790205*radius*radius*radius*scaleVol; //4/3*pi=4.188790205
         };
+
+        vector offsets[numberOfMarkerPoints];
 
 public:
 

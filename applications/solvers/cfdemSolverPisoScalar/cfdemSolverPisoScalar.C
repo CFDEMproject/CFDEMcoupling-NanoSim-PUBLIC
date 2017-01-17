@@ -100,12 +100,15 @@ int main(int argc, char *argv[])
 
         if(hasEvolved)
         {
-            particleCloud.smoothingM().smoothen(particleCloud.forceM(0).impParticleForces());
+            particleCloud.smoothingM().smoothenAbsolutField(particleCloud.forceM(0).impParticleForces());
         }
     
         Info << "update Ksl.internalField()" << endl;
         Ksl = particleCloud.momCoupleM(0).impMomSource();
         Ksl.correctBoundaryConditions();
+
+        surfaceScalarField voidfractionf = fvc::interpolate(voidfraction);
+        phi = voidfractionf*phiByVoidfraction;
 
         //Force Checks
         #include "forceCheckIm.H"
@@ -118,6 +121,7 @@ int main(int argc, char *argv[])
         // get scalar source from DEM        
         particleCloud.forceM(1).manipulateScalarField(Tsource);
         Tsource.correctBoundaryConditions();
+        particleCloud.forceM(1).commToDEM();
 
         // solve scalar transport equation
         fvScalarMatrix TEqn
@@ -176,26 +180,30 @@ int main(int argc, char *argv[])
                     U = rUA*UEqn.H();
 
                     #ifdef version23
-                        phi = ( fvc::interpolate(U*voidfraction) & mesh.Sf() )
-                            + rUAfvoidfraction*fvc::ddtCorr(U, phi);
+                        phi = ( fvc::interpolate(U) & mesh.Sf() )
+                            + rUAfvoidfraction*fvc::ddtCorr(U, phiByVoidfraction);
                     #else
-                        phi = ( fvc::interpolate(U*voidfraction) & mesh.Sf() )
-                            + fvc::ddtPhiCorr(rUAvoidfraction, U, phi);
+                        phi = ( fvc::interpolate(U) & mesh.Sf() )
+                            + fvc::ddtPhiCorr(rUAvoidfraction, U, phiByVoidfraction);
                     #endif
-                    surfaceScalarField phiS(fvc::interpolate(Us*voidfraction) & mesh.Sf());
-                    surfaceScalarField phiGes = phi + rUAf*(fvc::interpolate(Ksl/rho) * phiS);
+                    surfaceScalarField phiS(fvc::interpolate(Us) & mesh.Sf());
+                    phi += rUAf*(fvc::interpolate(Ksl/rho) * phiS);
 
                     if (modelType=="A")
                         rUAvoidfraction = volScalarField("(voidfraction2|A(U))",rUA*voidfraction*voidfraction);
 
                     // Update the fixedFluxPressure BCs to ensure flux consistency
                     #ifndef versionExt32
+                    #ifndef version40
                         if (modelType=="A")
                         {
-                            surfaceScalarField voidfractionf(fvc::interpolate(voidfraction));
                             setSnGrad<fixedFluxPressureFvPatchScalarField>
                             (
-                                p.boundaryField(),
+                                #ifdef versionv1612plus
+                                    p.boundaryFieldRef(),
+                                #else
+                                    p.boundaryField(),
+                                #endif
                                 (
                                     phi.boundaryField()
                                   - (mesh.Sf().boundaryField() & U.boundaryField())
@@ -205,7 +213,11 @@ int main(int argc, char *argv[])
                         {
                             setSnGrad<fixedFluxPressureFvPatchScalarField>
                             (
-                                p.boundaryField(),
+                                #ifdef versionv1612plus
+                                    p.boundaryFieldRef(),
+                                #else
+                                    p.boundaryField(),
+                                #endif
                                 (
                                     phi.boundaryField()
                                   - (mesh.Sf().boundaryField() & U.boundaryField())
@@ -213,6 +225,8 @@ int main(int argc, char *argv[])
                             );
                         }
                     #endif
+                    #endif
+                    
 
                     // Non-orthogonal pressure corrector loop
                     #if defined(version30)
@@ -224,7 +238,7 @@ int main(int argc, char *argv[])
                         // Pressure corrector
                         fvScalarMatrix pEqn
                         (
-                            fvm::laplacian(rUAvoidfraction, p) == fvc::div(phiGes) + particleCloud.ddtVoidfraction()
+                            fvm::laplacian(rUAvoidfraction, p) == fvc::div(voidfractionf*phi) + particleCloud.ddtVoidfraction()
                         );
                         pEqn.setReference(pRefCell, pRefValue);
 
@@ -232,8 +246,7 @@ int main(int argc, char *argv[])
                             pEqn.solve(mesh.solver(p.select(piso.finalInnerIter())));
                             if (piso.finalNonOrthogonalIter())
                             {
-                                phiGes -= pEqn.flux();
-                                phi = phiGes;
+                                phiByVoidfraction = phi - pEqn.flux()/voidfractionf;
                             }
                         #else
                             if( corr == nCorr-1 && nonOrth == nNonOrthCorr )
@@ -247,13 +260,13 @@ int main(int argc, char *argv[])
 
                             if (nonOrth == nNonOrthCorr)
                             {
-                                phiGes -= pEqn.flux();
-                                phi = phiGes;
+                                phiByVoidfraction = phi - pEqn.flux()/voidfractionf;
                             }
                         #endif
 
                     } // end non-orthogonal corrector loop
 
+                    phi = voidfractionf*phiByVoidfraction;
                     #include "continuityErrorPhiPU.H"
 
                     if (modelType=="B" || modelType=="Bfull")

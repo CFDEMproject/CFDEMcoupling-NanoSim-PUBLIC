@@ -56,13 +56,13 @@ addToRunTimeSelectionTable
 engineSearch::engineSearch
 (
     const dictionary& dict,
-    cfdemCloud& sm
+    cfdemCloud& sm,
+    word name
 )
 :
     locateModel(dict,sm),
-    propsDict_(dict.subDict(typeName + "Props")),
-    //faceDecomp_(propsDict_.lookup("faceDecomp")),
-    treeSearch_(propsDict_.lookup("treeSearch")),
+    propsDict_(dict.subDict(name == "" ? typeName + "Props" : name + "Props")),
+    treeSearch_(propsDict_.lookupOrDefault<Switch>("treeSearch", true)),
     #if defined(version30)
         searchEngine_(particleCloud_.mesh(),polyMesh::FACE_PLANES)
     #elif defined(version21)
@@ -70,7 +70,6 @@ engineSearch::engineSearch
     #elif defined(version16ext)
         searchEngine_(particleCloud_.mesh(),false) //(particleCloud_.mesh(),faceDecomp_)
     #endif
-    //searchEngine_(particleCloud_.mesh(),faceDecomp_) // only 2.0.x
 {}
 
 
@@ -98,10 +97,7 @@ label engineSearch::findCell
             // create pos vector
             for(int i=0;i<3;i++) position[i] = positions[index][i];
 
-            // find cell using tree search if switched on
             cellIDs[index][0] = searchEngine_.findCell(position,-1,treeSearch_);
-            //label cellIdOld = cellIDs[index][0];
-            //cellIDs[index][0] = searchEngine_.findCell(position,cellIdOld,treeSearch_);
         }
         else cellIDs[index][0] = -1;
     }
@@ -117,7 +113,36 @@ label engineSearch::findSingleCell
     return searchEngine_.findCell(position,oldCellID,treeSearch_);
 }
 
+label engineSearch::intersection
+(
+    const point& pStart,
+    const point& pEnd
+) const
+{
+    // find intersection with boundary
+    label face = searchEngine_.findNearestBoundaryFace(pEnd);
 
+    // try alternative
+    if (face==-1)
+    {
+        face = searchEngine_.intersection(pStart,pEnd).index();
+
+        if (face==-1 && mag(pStart-point(0,0,0))<SMALL)
+        {
+            point pStart2 = pEnd+0.0001*(pStart-pEnd)/mag(pStart-pEnd);
+            face = searchEngine_.intersection(pStart2,pEnd).index();
+        }
+    }
+    return face;
+}
+
+label engineSearch::findNearestCell
+(
+    const point& pStart
+) const
+{
+    return searchEngine_.findNearestCell(pStart,-1,true);
+}
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 } // End namespace Foam

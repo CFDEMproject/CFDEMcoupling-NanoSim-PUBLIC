@@ -54,7 +54,9 @@ namespace Foam
 
 class forceSubModel
 {
+private:
 
+       
 protected:
 
     // Protected data
@@ -87,6 +89,10 @@ protected:
         mutable int     verboseDiskIntervall_;
 
         mutable int     verboseDiskCounter_;
+
+        scalar scaleDia_;
+
+        scalar scaleDrag_;
 
 public:
 
@@ -156,18 +162,25 @@ public:
         virtual void explicitCorrScalar(scalar&, scalar&, scalar&,
                                         scalar&, const scalar&, scalar&, bool, label index=100) const;
 
-        virtual void update(scalar& deltaT,         label particleI,        label cellI,
+        virtual void update(label particleI,        label cellI,            scalar& d,
                             scalar& scalToUpdate1,  scalar&  scalToUpdate2, bool  verbose) const;
 
-        virtual void update(scalar& deltaT,         label particleI,        label cellI,
+        virtual void update(label particleI,        label cellI,            scalar& d,
                             vector& vecToUpdate1,   vector&  vecToUpdate2,
                             scalar& scalToUpdate1,  scalar&  scalToUpdate2,
                             bool  verbose) const;
+
+        virtual void scaleDia(scalar& d, int index=0) const;
+
+        virtual void scaleForce(vector& force, scalar& d, int index=0) const;
+
+        virtual void scaleCoeff(scalar& coeff, scalar& d, int index=0) const;
 
         virtual void explicitLimit(vector&, vector&, scalar&) const;
         
         virtual void verboseToDiskWrite(Field<scalar>& writeValues) const {};//implement writing to disk
 
+        virtual scalar calculateCorrectedVoidage(scalar voidfraction) const {return voidfraction;};
 
     // Access
         inline bool implForceDEM() const { return switches_[2]; }
@@ -194,6 +207,8 @@ public:
 
         virtual word myType() const=0;
 
+        inline bool useCorrectedVoidage() const { return switches_[10]; }
+
         inline forceModel& myForceM() const { return forceModel_; }
 
         inline const List<Switch>& switches() const { return switches_; }
@@ -217,6 +232,10 @@ public:
         const volVectorField& divTauField(const volVectorField&) const;
 
         const volVectorField& IBDragPerV(const volVectorField&,const volScalarField&) const;
+
+        const scalar& scaleDia() const {return scaleDia_;};
+
+        const scalar& scaleDrag() const {return scaleDia_;};
 };
 
 
